@@ -14,13 +14,13 @@
 <title>Paradise Bingo 🌴</title>
 
 <style>
-
 body{
 font-family:Arial,sans-serif;
 text-align:center;
 background:linear-gradient(180deg,#dff6f4,#f7f3e9);
 padding:15px;
 margin:0;
+color:#18323a;
 }
 
 h1{
@@ -79,6 +79,27 @@ margin-top:10px;
 font-weight:bold;
 }
 
+.leaderboard{
+background:white;
+border:2px solid #d9e5e7;
+border-radius:14px;
+padding:15px;
+margin-top:20px;
+box-shadow:0 5px 15px rgba(0,0,0,.06);
+}
+
+.leaderboard h2{
+color:#008c9e;
+margin-top:0;
+}
+
+.leaderboard-row{
+display:flex;
+justify-content:space-between;
+padding:8px;
+border-bottom:1px solid #e5eeee;
+}
+
 #loader{
 position:fixed;
 inset:0;
@@ -111,8 +132,15 @@ color:white;
 padding:10px 15px;
 border-radius:20px;
 display:none;
+z-index:99999;
 }
 
+.version{
+margin-top:25px;
+color:#888;
+font-size:12px;
+text-align:center;
+}
 </style>
 </head>
 
@@ -130,19 +158,52 @@ display:none;
 <div class="sub">Tap squares as the night unfolds 🍹</div>
 
 <button onclick="generateBoard()">🎲 New Board</button>
-<button onclick="resetBoard()">↺ Reset</button>
+<button onclick="resetBoard()">↺ Reset My Board</button>
 <button onclick="shareBoard()">📤 Share</button>
 
 <div class="stats">
+Player: <span id="playerNameDisplay"></span><br>
 Marked: <span id="markedCount">1</span> |
-Bingos: <span id="bingoCount">0</span>
+Bingos: <span id="bingoCount">0</span> |
+Score: <span id="scoreDisplay">0</span>
 </div>
 
 <div id="board"></div>
 
+<div class="leaderboard">
+<h2>🏆 Live Leaderboard</h2>
+<div id="leaderboardList">Loading...</div>
+</div>
+
 <div id="toast"></div>
 
-<script>
+<div class="version">
+Paradise Bingo v2.0.0 • Multiplayer Edition
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import {
+getFirestore,
+collection,
+doc,
+setDoc,
+getDoc,
+onSnapshot,
+serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSyBK5Xy-5IoB3e0tTIuve-S0wLo7OEjEgh0",
+authDomain: "paradise-bingo.firebaseapp.com",
+projectId: "paradise-bingo",
+storageBucket: "paradise-bingo.firebasestorage.app",
+messagingSenderId: "494914762155",
+appId: "1:494914762155:web:a9628476635f09e840ceee"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 const words = [
 "Last Call",
@@ -163,7 +224,7 @@ const words = [
 "Hootin and hollerin",
 "Didge Burp",
 "Hot Girl Shit",
-"Fire Alarm 🚨 ",
+"Fire Alarm 🚨",
 "Someone loses phone",
 "TVs Go Out",
 "Overalls",
@@ -175,7 +236,38 @@ const words = [
 "Shots!"
 ];
 
-let bingoCount = 0;
+const STORAGE_BOARD = "paradise_board";
+const STORAGE_MARKED = "paradise_marked";
+const STORAGE_LINES = "paradise_lines";
+const STORAGE_PLAYER = "paradise_player";
+const STORAGE_ID = "paradise_player_id";
+const STORAGE_BLACKOUT = "paradise_blackout";
+
+const wins = [
+[0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],
+[0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
+[0,6,12,18,24],[4,8,12,16,20]
+];
+
+function getPlayerId(){
+let id = localStorage.getItem(STORAGE_ID);
+if(!id){
+id = crypto.randomUUID();
+localStorage.setItem(STORAGE_ID,id);
+}
+return id;
+}
+
+function getPlayerName(){
+let name = localStorage.getItem(STORAGE_PLAYER);
+if(!name){
+name = prompt("Enter your Paradise Bingo player name:");
+if(!name) name = "Anonymous Paradise Player";
+localStorage.setItem(STORAGE_PLAYER,name);
+}
+document.getElementById("playerNameDisplay").innerText = name;
+return name;
+}
 
 function shuffle(array){
 for(let i=array.length-1;i>0;i--){
@@ -185,70 +277,147 @@ const j=Math.floor(Math.random()*(i+1));
 return array;
 }
 
-function generateBoard(){
-const board=document.getElementById("board");
-board.innerHTML="";
-bingoCount=0;
+function getBoard(){
+let saved = localStorage.getItem(STORAGE_BOARD);
+if(saved) return JSON.parse(saved);
 
-let shuffled=shuffle([...words]).slice(0,24);
+let board = shuffle([...words]).slice(0,24);
+localStorage.setItem(STORAGE_BOARD,JSON.stringify(board));
+return board;
+}
+
+function buildBoard(){
+const boardDiv = document.getElementById("board");
+boardDiv.innerHTML = "";
+
+let boardWords = [...getBoard()];
+let savedMarked = JSON.parse(localStorage.getItem(STORAGE_MARKED) || "[12]");
 
 for(let i=0;i<25;i++){
-
-let square=document.createElement("div");
+const square = document.createElement("div");
 square.classList.add("square");
 
 if(i===12){
-square.innerText="FREE 🌴";
+square.innerText = "FREE 🌴";
 square.classList.add("marked");
 }else{
-square.innerText=shuffled.shift();
+square.innerText = boardWords.shift();
+}
 
-square.onclick=()=>{
+if(savedMarked.includes(i)){
+square.classList.add("marked");
+}
+
+square.onclick = () => {
 square.classList.toggle("marked");
+saveMarked();
 updateStats();
 checkBingo();
 };
-}
 
-board.appendChild(square);
+boardDiv.appendChild(square);
 }
 
 updateStats();
 }
 
-function resetBoard(){
-generateBoard();
-showToast("Board reset 🌴");
+function saveMarked(){
+const squares = document.querySelectorAll(".square");
+const marked = [];
+
+squares.forEach((square,index)=>{
+if(square.classList.contains("marked")){
+marked.push(index);
+}
+});
+
+localStorage.setItem(STORAGE_MARKED,JSON.stringify(marked));
 }
 
 function updateStats(){
-let marked=document.querySelectorAll(".marked").length;
-document.getElementById("markedCount").innerText=marked;
+const squares = document.querySelectorAll(".square");
+const markedCount = document.querySelectorAll(".square.marked").length;
+const claimedLines = JSON.parse(localStorage.getItem(STORAGE_LINES) || "[]");
 
-if(marked===25){
-showToast("🏆 BLACKOUT WINNER 🏆");
+document.getElementById("markedCount").innerText = markedCount;
+document.getElementById("bingoCount").innerText = claimedLines.length;
 }
+
+async function updateFirebaseScore(points){
+const playerId = getPlayerId();
+const playerName = getPlayerName();
+const playerRef = doc(db,"leaderboard",playerId);
+const snap = await getDoc(playerRef);
+
+let currentScore = 0;
+if(snap.exists()){
+currentScore = snap.data().score || 0;
+}
+
+let newScore = currentScore + points;
+
+await setDoc(playerRef,{
+name: playerName,
+score: newScore,
+updatedAt: serverTimestamp()
+});
+
+document.getElementById("scoreDisplay").innerText = newScore;
 }
 
 function checkBingo(){
+const squares = document.querySelectorAll(".square");
+const marked = [...squares].map(square=>square.classList.contains("marked"));
+let claimedLines = JSON.parse(localStorage.getItem(STORAGE_LINES) || "[]");
 
-const squares=document.querySelectorAll(".square");
-let marked=[...squares].map(s=>s.classList.contains("marked"));
+wins.forEach((combo,index)=>{
+if(combo.every(i=>marked[i]) && !claimedLines.includes(index)){
+claimedLines.push(index);
+localStorage.setItem(STORAGE_LINES,JSON.stringify(claimedLines));
+showToast("PARADISE BINGO! +1 🌴🍹");
+updateFirebaseScore(1);
+}
+});
 
-const wins=[
-[0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],
-[0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
-[0,6,12,18,24],[4,8,12,16,20]
-];
+if(marked.every(Boolean) && !localStorage.getItem(STORAGE_BLACKOUT)){
+localStorage.setItem(STORAGE_BLACKOUT,"true");
+showToast("PARADISE BLACKOUT! +5 🏆");
+updateFirebaseScore(5);
+}
 
-for(let combo of wins){
-if(combo.every(i=>marked[i])){
-showToast("BINGO! 🍹");
-bingoCount=1;
-document.getElementById("bingoCount").innerText=bingoCount;
+updateStats();
+}
+
+function listenLeaderboard(){
+const leaderboardRef = collection(db,"leaderboard");
+
+onSnapshot(leaderboardRef,(snapshot)=>{
+let players = [];
+
+snapshot.forEach(doc=>{
+players.push(doc.data());
+});
+
+players.sort((a,b)=>(b.score || 0)-(a.score || 0));
+
+const list = document.getElementById("leaderboardList");
+list.innerHTML = "";
+
+if(players.length===0){
+list.innerHTML = "No scores yet.";
 return;
 }
-}
+
+players.forEach((player,index)=>{
+const row = document.createElement("div");
+row.classList.add("leaderboard-row");
+row.innerHTML = `
+<span>${index+1}. ${player.name}</span>
+<strong>${player.score}</strong>
+`;
+list.appendChild(row);
+});
+});
 }
 
 function showToast(message){
@@ -258,34 +427,50 @@ toast.style.display="block";
 
 setTimeout(()=>{
 toast.style.display="none";
-},2000);
+},2200);
 }
 
-function shareBoard(){
+window.generateBoard = function(){
+localStorage.removeItem(STORAGE_BOARD);
+localStorage.removeItem(STORAGE_MARKED);
+localStorage.removeItem(STORAGE_LINES);
+localStorage.removeItem(STORAGE_BLACKOUT);
+buildBoard();
+showToast("New board generated 🌴");
+};
 
+window.resetBoard = function(){
+localStorage.removeItem(STORAGE_MARKED);
+localStorage.removeItem(STORAGE_LINES);
+localStorage.removeItem(STORAGE_BLACKOUT);
+buildBoard();
+showToast("Your board was reset 🌴");
+};
+
+window.shareBoard = function(){
 if(navigator.share){
 navigator.share({
 title:"Paradise Bingo",
 text:"Bringing back Bingo 🌴🍹",
 url:window.location.href
 });
+}else{
+navigator.clipboard.writeText(window.location.href);
+showToast("Link copied 📋");
 }
-else{
-showToast("Sharing not supported");
-}
-}
+};
 
 window.addEventListener("load",()=>{
-
 setTimeout(()=>{
 document.getElementById("loader").style.display="none";
 },1200);
-
 });
 
-generateBoard();
-
+getPlayerName();
+buildBoard();
+listenLeaderboard();
 </script>
 
 </body>
 </html>
+
