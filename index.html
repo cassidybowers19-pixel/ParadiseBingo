@@ -100,26 +100,51 @@ padding:8px;
 border-bottom:1px solid #e5eeee;
 }
 
-#loader{
-position:fixed;
-inset:0;
-background:linear-gradient(180deg,#00c48c,#008c9e);
-display:flex;
-justify-content:center;
-align-items:center;
-z-index:9999;
-color:white;
+.logo-wrapper{
+    z-index:5;
+    margin-bottom:20px;
 }
 
-.loader-content{
-text-align:center;
-animation:pulse 1.5s infinite;
+.loading-logo{
+    width:240px;
+    max-width:75vw;
+
+    animation:
+        floatLogo 3s ease-in-out infinite,
+        fadeIn .8s ease;
+
+    filter:
+        drop-shadow(0 8px 18px rgba(0,0,0,.25));
 }
 
-@keyframes pulse{
-0%{transform:scale(1);}
-50%{transform:scale(1.05);}
-100%{transform:scale(1);}
+@keyframes floatLogo{
+
+    0%{
+        transform:translateY(0px);
+    }
+
+    50%{
+        transform:translateY(-8px);
+    }
+
+    100%{
+        transform:translateY(0px);
+    }
+
+}
+
+@keyframes fadeIn{
+
+    from{
+        opacity:0;
+        transform:scale(.85);
+    }
+
+    to{
+        opacity:1;
+        transform:scale(1);
+    }
+
 }
 
 #toast{
@@ -145,10 +170,26 @@ text-align:center;
 </head>
 
 <body>
+<!-- Loading Screen -->
+<div id="loadingScreen">
 
-<div id="loader">
-<div class="loader-content">
-🌴
+    <div class="falling-container"></div>
+
+    <div class="logo-wrapper">
+        <img
+            src="icon-192.png"
+            alt="Paradise Bingo"
+            class="loading-logo">
+    </div>
+
+    <p id="loadingText">Rolling the dice...</p>
+
+    <div class="loading-bar">
+        <div class="loading-progress"></div>
+    </div>
+
+</div>
+  
 <h2>Paradise Bingo</h2>
 <p>Loading good decisions...</p>
 </div>
