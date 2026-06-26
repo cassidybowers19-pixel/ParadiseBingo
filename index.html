@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Paradise Bingo">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
-
+    
 <title>Paradise Bingo 🌴</title>
 
 <style>
@@ -166,6 +166,73 @@ color:#888;
 font-size:12px;
 text-align:center;
 }
+.app-logo-header{
+  text-align:center;
+  margin:5px auto 12px;
+}
+
+.board-logo{
+  width:190px;
+  max-width:70vw;
+  height:auto;
+  border-radius:24px;
+  display:block;
+  margin:0 auto;
+  filter:drop-shadow(0 6px 12px rgba(0,0,0,.18));
+}
+/* Loading Screen */
+
+#loadingScreen{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  background:linear-gradient(180deg,#dff6f4,#f7f3e9);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+  overflow:hidden;
+  transition:opacity .6s ease;
+}
+
+.falling-container{
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+  pointer-events:none;
+}
+
+.loading-bar{
+  width:260px;
+  height:18px;
+  background:white;
+  border-radius:999px;
+  overflow:hidden;
+  box-shadow:0 4px 12px rgba(0,0,0,.18);
+  z-index:5;
+}
+
+.loading-progress{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#00c48c,#008c9e);
+  animation:loadBar 3s forwards;
+}
+
+@keyframes loadBar{
+  from{width:0%;}
+  to{width:100%;}
+}
+
+#loadingText{
+  font-size:20px;
+  color:#18323a;
+  font-weight:bold;
+  margin:18px 0;
+  z-index:5;
+}
 </style>
 </head>
 
@@ -189,12 +256,11 @@ text-align:center;
     </div>
 
 </div>
-  
-<h2>Paradise Bingo</h2>
-<p>Loading good decisions...</p>
-</div>
-</div>
 
+<div class="app-logo-header">
+  <img src="icon-192.png" alt="Paradise Bingo Logo" class="board-logo">
+</div>    
+    
 <h1>🌴 Paradise Bingo 🍻</h1>
 <div class="sub">Tap squares as the night unfolds 🍹</div>
 
@@ -500,11 +566,19 @@ navigator.clipboard.writeText(window.location.href);
 showToast("Link copied 📋");
 }
 };
-
 window.addEventListener("load",()=>{
-setTimeout(()=>{
-document.getElementById("loader").style.display="none";
-},1200);
+  setTimeout(()=>{
+    const loadingScreen = document.getElementById("loadingScreen");
+
+    if(loadingScreen){
+      loadingScreen.style.opacity = "0";
+
+      setTimeout(()=>{
+        loadingScreen.style.display = "none";
+      },600);
+    }
+
+  },2500);
 });
 
 getPlayerName();
