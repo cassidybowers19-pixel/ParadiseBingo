@@ -389,6 +389,21 @@ Score: <span id="scoreDisplay">0</span>
 Paradise Bingo v2.0.0 • Multiplayer Edition
 </div>
 
+<script>
+window.addEventListener("load", function(){
+  setTimeout(function(){
+    const loadingScreen = document.getElementById("loadingScreen");
+
+    if(loadingScreen){
+      loadingScreen.style.opacity = "0";
+
+      setTimeout(function(){
+        loadingScreen.style.display = "none";
+      },600);
+    }
+  },2500);
+});
+</script>    
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import {
