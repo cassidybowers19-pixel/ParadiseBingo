@@ -10,162 +10,128 @@
 <meta name="apple-mobile-web-app-title" content="Paradise Bingo">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
-    
+
 <title>Paradise Bingo 🌴</title>
 
 <style>
 body{
-font-family:Arial,sans-serif;
-text-align:center;
-background:linear-gradient(180deg,#dff6f4,#f7f3e9);
-padding:15px;
-margin:0;
-color:#18323a;
+  font-family:Arial,sans-serif;
+  text-align:center;
+  background:linear-gradient(180deg,#dff6f4,#f7f3e9);
+  padding:15px;
+  margin:0;
+  color:#18323a;
 }
 
 h1{
-font-size:30px;
-color:#008c9e;
+  font-size:30px;
+  color:#008c9e;
 }
 
 .sub{
-color:#666;
-margin-bottom:15px;
+  color:#666;
+  margin-bottom:15px;
 }
 
 #board{
-display:grid;
-grid-template-columns:repeat(5,1fr);
-gap:6px;
-max-width:95vw;
-margin:20px auto;
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:6px;
+  max-width:95vw;
+  margin:20px auto;
 }
 
 .square{
-background:white;
-border-radius:12px;
-padding:8px;
-font-size:12px;
-line-height:1.2;
-min-height:75px;
-display:flex;
-align-items:center;
-justify-content:center;
-border:2px solid #ddd;
-cursor:pointer;
-user-select:none;
-transition:0.2s;
+  background:white;
+  border-radius:12px;
+  padding:8px;
+  font-size:12px;
+  line-height:1.2;
+  min-height:75px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:2px solid #ddd;
+  cursor:pointer;
+  user-select:none;
+  transition:0.2s;
+  position:relative;
 }
 
 .marked{
-background:#00c48c;
-color:white;
-font-weight:bold;
+  background:#00c48c;
+  color:white;
+  font-weight:bold;
+}
+
+.square.photo-required::before{
+  content:"📸";
+  position:absolute;
+  top:5px;
+  right:6px;
+  font-size:17px;
+}
+
+.square.photo-square{
+  padding:0;
+  overflow:hidden;
+}
+
+.proof-photo{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.photo-label{
+  position:absolute;
+  bottom:0;
+  left:0;
+  right:0;
+  background:rgba(0,0,0,.55);
+  color:white;
+  font-size:10px;
+  padding:3px;
 }
 
 button{
-background:#008c9e;
-color:white;
-border:none;
-padding:12px 18px;
-font-size:16px;
-border-radius:10px;
-margin:5px;
-cursor:pointer;
+  background:#008c9e;
+  color:white;
+  border:none;
+  padding:12px 18px;
+  font-size:16px;
+  border-radius:10px;
+  margin:5px;
+  cursor:pointer;
 }
 
 .stats{
-margin-top:10px;
-font-weight:bold;
+  margin-top:10px;
+  font-weight:bold;
 }
 
 .leaderboard{
-background:white;
-border:2px solid #d9e5e7;
-border-radius:14px;
-padding:15px;
-margin-top:20px;
-box-shadow:0 5px 15px rgba(0,0,0,.06);
+  background:white;
+  border:2px solid #d9e5e7;
+  border-radius:14px;
+  padding:15px;
+  margin-top:20px;
+  box-shadow:0 5px 15px rgba(0,0,0,.06);
 }
 
 .leaderboard h2{
-color:#008c9e;
-margin-top:0;
+  color:#008c9e;
+  margin-top:0;
 }
 
 .leaderboard-row{
-display:flex;
-justify-content:space-between;
-padding:8px;
-border-bottom:1px solid #e5eeee;
+  display:flex;
+  justify-content:space-between;
+  padding:8px;
+  border-bottom:1px solid #e5eeee;
 }
 
-.logo-wrapper{
-    z-index:5;
-    margin-bottom:20px;
-}
-
-.loading-logo{
-    width:240px;
-    max-width:75vw;
-
-    animation:
-        floatLogo 3s ease-in-out infinite,
-        fadeIn .8s ease;
-
-    filter:
-        drop-shadow(0 8px 18px rgba(0,0,0,.25));
-}
-
-@keyframes floatLogo{
-
-    0%{
-        transform:translateY(0px);
-    }
-
-    50%{
-        transform:translateY(-8px);
-    }
-
-    100%{
-        transform:translateY(0px);
-    }
-
-}
-
-@keyframes fadeIn{
-
-    from{
-        opacity:0;
-        transform:scale(.85);
-    }
-
-    to{
-        opacity:1;
-        transform:scale(1);
-    }
-
-}
-
-#toast{
-position:fixed;
-bottom:20px;
-left:50%;
-transform:translateX(-50%);
-background:black;
-color:white;
-padding:10px 15px;
-border-radius:20px;
-display:none;
-z-index:99999;
-}
-
-.version{
-margin-top:25px;
-color:#888;
-font-size:12px;
-text-align:center;
-}
 .app-logo-header{
   text-align:center;
   margin:5px auto 12px;
@@ -180,7 +146,6 @@ text-align:center;
   margin:0 auto;
   filter:drop-shadow(0 6px 12px rgba(0,0,0,.18));
 }
-/* Loading Screen */
 
 #loadingScreen{
   position:fixed;
@@ -197,11 +162,27 @@ text-align:center;
   transition:opacity .6s ease;
 }
 
-.falling-container{
-  position:absolute;
-  inset:0;
-  overflow:hidden;
-  pointer-events:none;
+.logo-wrapper{
+  z-index:5;
+  margin-bottom:20px;
+}
+
+.loading-logo{
+  width:240px;
+  max-width:75vw;
+  animation:floatLogo 3s ease-in-out infinite, fadeIn .8s ease;
+  filter:drop-shadow(0 8px 18px rgba(0,0,0,.25));
+}
+
+@keyframes floatLogo{
+  0%{transform:translateY(0);}
+  50%{transform:translateY(-8px);}
+  100%{transform:translateY(0);}
+}
+
+@keyframes fadeIn{
+  from{opacity:0; transform:scale(.85);}
+  to{opacity:1; transform:scale(1);}
 }
 
 .loading-bar{
@@ -234,39 +215,17 @@ text-align:center;
   z-index:5;
 }
 
-    .square{
-  position:relative;
-}
-
-.square.photo-required::before{
-  content:"📸";
-  position:absolute;
-  top:5px;
-  right:6px;
-  font-size:17px;
-}
-
-.square.photo-square{
-  padding:0;
-  overflow:hidden;
-}
-
-.proof-photo{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  display:block;
-}
-
-.photo-label{
-  position:absolute;
-  bottom:0;
-  left:0;
-  right:0;
-  background:rgba(0,0,0,.55);
+#toast{
+  position:fixed;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  background:black;
   color:white;
-  font-size:10px;
-  padding:3px;
+  padding:10px 15px;
+  border-radius:20px;
+  display:none;
+  z-index:99999;
 }
 
 .confetti-piece{
@@ -311,19 +270,21 @@ text-align:center;
 }
 
 @keyframes blackoutFlash{
-  from{
-    color:white;
-    transform:scale(1);
-  }
-  to{
-    color:#00c48c;
-    transform:scale(1.08);
-  }
+  from{color:white; transform:scale(1);}
+  to{color:#00c48c; transform:scale(1.08);}
+}
+
+.version{
+  margin-top:25px;
+  color:#888;
+  font-size:12px;
+  text-align:center;
 }
 </style>
 </head>
 
 <body>
+
 <input
   id="photoProofInput"
   type="file"
@@ -336,31 +297,23 @@ text-align:center;
   <div class="blackoutText">BLACKOUT WINNER</div>
   <div class="blackoutSub">Paradise has been conquered 🏆</div>
 </div>
-    
-<!-- Loading Screen -->
+
 <div id="loadingScreen">
+  <div class="logo-wrapper">
+    <img src="icon-192.png" alt="Paradise Bingo" class="loading-logo">
+  </div>
 
-    <div class="falling-container"></div>
+  <p id="loadingText">Rolling the dice...</p>
 
-    <div class="logo-wrapper">
-        <img
-            src="icon-192.png"
-            alt="Paradise Bingo"
-            class="loading-logo">
-    </div>
-
-    <p id="loadingText">Rolling the dice...</p>
-
-    <div class="loading-bar">
-        <div class="loading-progress"></div>
-    </div>
-
+  <div class="loading-bar">
+    <div class="loading-progress"></div>
+  </div>
 </div>
 
 <div class="app-logo-header">
   <img src="icon-192.png" alt="Paradise Bingo Logo" class="board-logo">
-</div>    
-    
+</div>
+
 <h1>🌴 Paradise Bingo 🍻</h1>
 <div class="sub">Tap squares as the night unfolds 🍹</div>
 
@@ -368,61 +321,46 @@ text-align:center;
 <button onclick="resetBoard()">↺ Reset My Board</button>
 <button onclick="shareBoard()">📤 Share</button>
 <button onclick="openPhotoAlbum()">📸 Photo Album</button>
-    
+
 <div class="stats">
-Player: <span id="playerNameDisplay"></span><br>
-Marked: <span id="markedCount">1</span> |
-Bingos: <span id="bingoCount">0</span> |
-Score: <span id="scoreDisplay">0</span>
+  Player: <span id="playerNameDisplay"></span><br>
+  Marked: <span id="markedCount">1</span> |
+  Bingos: <span id="bingoCount">0</span> |
+  Score: <span id="scoreDisplay">0</span>
 </div>
 
 <div id="board"></div>
 
 <div class="leaderboard">
-<h2>🏆 Live Leaderboard</h2>
-<div id="leaderboardList">Loading...</div>
+  <h2>🏆 Live Leaderboard</h2>
+  <div id="leaderboardList">Loading...</div>
 </div>
 
 <div id="toast"></div>
 
 <div class="version">
-Paradise Bingo v2.0.0 • Multiplayer Edition
+  Paradise Bingo v2.1.0 • Bingo Engine Edition
 </div>
 
-<script>
-window.addEventListener("load", function(){
-  setTimeout(function(){
-    const loadingScreen = document.getElementById("loadingScreen");
-
-    if(loadingScreen){
-      loadingScreen.style.opacity = "0";
-
-      setTimeout(function(){
-        loadingScreen.style.display = "none";
-      },600);
-    }
-  },2500);
-});
-</script>    
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import {
-getFirestore,
-collection,
-doc,
-setDoc,
-getDoc,
-onSnapshot,
-serverTimestamp
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  onSnapshot,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 const firebaseConfig = {
-apiKey: "AIzaSyBK5Xy-5IoB3e0tTIuve-S0wLo7OEjEgh0",
-authDomain: "paradise-bingo.firebaseapp.com",
-projectId: "paradise-bingo",
-storageBucket: "paradise-bingo.firebasestorage.app",
-messagingSenderId: "494914762155",
-appId: "1:494914762155:web:a9628476635f09e840ceee"
+  apiKey: "AIzaSyBK5Xy-5IoB3e0tTIuve-S0wLo7OEjEgh0",
+  authDomain: "paradise-bingo.firebaseapp.com",
+  projectId: "paradise-bingo",
+  storageBucket: "paradise-bingo.firebasestorage.app",
+  messagingSenderId: "494914762155",
+  appId: "1:494914762155:web:a9628476635f09e840ceee"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -436,7 +374,6 @@ const WORD_BANK = [
   "Menu Misspelling",
   "Bar Sing-a-Long",
   "Child in Smoking Bar",
-  "Someone is Asleep",
   "Jump the Bar",
   "Trivia Win",
   "Barrett playing golden tee",
@@ -459,7 +396,7 @@ const WORD_BANK = [
   "Shots!",
 
   { text:"Group bar selfie", photo:true },
-  { text:"Best drink photo", photo:true },
+  { text:"Someone is Asleep", photo:true },
   { text:"Photo with bartender", photo:true }
 ];
 
@@ -469,49 +406,63 @@ const STORAGE_LINES = "paradise_lines";
 const STORAGE_PLAYER = "paradise_player";
 const STORAGE_ID = "paradise_player_id";
 const STORAGE_BLACKOUT = "paradise_blackout";
+const STORAGE_PHOTOS = "paradise_photos";
+
+let pendingPhotoSquare = null;
+let pendingPhotoIndex = null;
 
 const wins = [
-[0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],
-[0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
-[0,6,12,18,24],[4,8,12,16,20]
+  [0,1,2,3,4],
+  [5,6,7,8,9],
+  [10,11,12,13,14],
+  [15,16,17,18,19],
+  [20,21,22,23,24],
+  [0,5,10,15,20],
+  [1,6,11,16,21],
+  [2,7,12,17,22],
+  [3,8,13,18,23],
+  [4,9,14,19,24],
+  [0,6,12,18,24],
+  [4,8,12,16,20]
 ];
 
 function getPlayerId(){
-let id = localStorage.getItem(STORAGE_ID);
-if(!id){
-id = crypto.randomUUID();
-localStorage.setItem(STORAGE_ID,id);
-}
-return id;
+  let id = localStorage.getItem(STORAGE_ID);
+
+  if(!id){
+    id = crypto.randomUUID();
+    localStorage.setItem(STORAGE_ID,id);
+  }
+
+  return id;
 }
 
 function getPlayerName(){
-let name = localStorage.getItem(STORAGE_PLAYER);
-if(!name){
-name = prompt("Enter your Paradise Bingo player name:");
-if(!name) name = "Anonymous Paradise Player";
-localStorage.setItem(STORAGE_PLAYER,name);
-}
-document.getElementById("playerNameDisplay").innerText = name;
-return name;
+  let name = localStorage.getItem(STORAGE_PLAYER);
+
+  if(!name){
+    name = prompt("Enter your Paradise Bingo player name:");
+
+    if(!name){
+      name = "Anonymous Paradise Player";
+    }
+
+    localStorage.setItem(STORAGE_PLAYER,name);
+  }
+
+  document.getElementById("playerNameDisplay").innerText = name;
+  return name;
 }
 
 function shuffle(array){
-for(let i=array.length-1;i>0;i--){
-const j=Math.floor(Math.random()*(i+1));
-[array[i],array[j]]=[array[j],array[i]];
-}
-return array;
+  for(let i=array.length-1;i>0;i--){
+    const j = Math.floor(Math.random() * (i+1));
+    [array[i],array[j]] = [array[j],array[i]];
+  }
+
+  return array;
 }
 
-function getBoard(){
-  let saved = localStorage.getItem(STORAGE_BOARD);
-  if(saved) return JSON.parse(saved);
-
-  let board = shuffle([...WORD_BANK]).slice(0,24);
-  localStorage.setItem(STORAGE_BOARD,JSON.stringify(board));
-  return board;
-}
 function getSquareText(item){
   return typeof item === "string" ? item : item.text;
 }
@@ -519,6 +470,20 @@ function getSquareText(item){
 function requiresPhoto(item){
   return typeof item === "object" && item.photo === true;
 }
+
+function getBoard(){
+  let saved = localStorage.getItem(STORAGE_BOARD);
+
+  if(saved){
+    return JSON.parse(saved);
+  }
+
+  let board = shuffle([...WORD_BANK]).slice(0,24);
+  localStorage.setItem(STORAGE_BOARD,JSON.stringify(board));
+
+  return board;
+}
+
 function buildBoard(){
   const boardDiv = document.getElementById("board");
   boardDiv.innerHTML = "";
@@ -531,7 +496,7 @@ function buildBoard(){
     const square = document.createElement("div");
     square.classList.add("square");
 
-    if(i===12){
+    if(i === 12){
       square.innerText = "FREE 🌴";
       square.classList.add("marked");
     }else{
@@ -558,29 +523,16 @@ function buildBoard(){
     }
 
     square.onclick = () => handleSquareClick(square,i);
-
     boardDiv.appendChild(square);
   }
 
   updateStats();
 }
-boardDiv.appendChild(square);
-}
-
-function saveMarked(){
-const squares = document.querySelectorAll(".square");
-const marked = [];
-
-squares.forEach((square,index)=>{
-if(square.classList.contains("marked")){
-marked.push(index);
-}
-});
-let pendingPhotoSquare = null;
-let pendingPhotoIndex = null;
 
 function handleSquareClick(square,index){
-  if(index === 12) return;
+  if(index === 12){
+    return;
+  }
 
   const item = JSON.parse(square.dataset.item || "{}");
 
@@ -590,6 +542,147 @@ function handleSquareClick(square,index){
     document.getElementById("photoProofInput").click();
     return;
   }
+
+  square.classList.toggle("marked");
+  saveMarked();
+  updateStats();
+  checkBingo();
+}
+
+function saveMarked(){
+  const squares = document.querySelectorAll(".square");
+  const marked = [];
+
+  squares.forEach((square,index)=>{
+    if(square.classList.contains("marked")){
+      marked.push(index);
+    }
+  });
+
+  localStorage.setItem(STORAGE_MARKED,JSON.stringify(marked));
+}
+
+document.getElementById("photoProofInput").addEventListener("change",function(event){
+  const file = event.target.files[0];
+
+  if(!file || !pendingPhotoSquare){
+    return;
+  }
+
+  resizePhoto(file,function(photoData){
+    const savedPhotos = JSON.parse(localStorage.getItem(STORAGE_PHOTOS) || "{}");
+    savedPhotos[pendingPhotoIndex] = photoData;
+    localStorage.setItem(STORAGE_PHOTOS,JSON.stringify(savedPhotos));
+
+    pendingPhotoSquare.innerHTML = `
+      <img src="${photoData}" class="proof-photo">
+      <div class="photo-label">Photo Proof</div>
+    `;
+
+    pendingPhotoSquare.classList.add("marked","photo-square");
+    pendingPhotoSquare.classList.remove("photo-required");
+
+    saveMarked();
+    updateStats();
+    checkBingo();
+
+    showToast("Photo proof complete 📸");
+
+    pendingPhotoSquare = null;
+    pendingPhotoIndex = null;
+    event.target.value = "";
+  });
+});
+
+function resizePhoto(file,callback){
+  const reader = new FileReader();
+
+  reader.onload = function(event){
+    const img = new Image();
+
+    img.onload = function(){
+      const canvas = document.createElement("canvas");
+      const size = 400;
+
+      canvas.width = size;
+      canvas.height = size;
+
+      const ctx = canvas.getContext("2d");
+
+      const scale = Math.max(size / img.width, size / img.height);
+      const x = size / 2 - img.width / 2 * scale;
+      const y = size / 2 - img.height / 2 * scale;
+
+      ctx.drawImage(img,x,y,img.width * scale,img.height * scale);
+
+      callback(canvas.toDataURL("image/jpeg",0.75));
+    };
+
+    img.src = event.target.result;
+  };
+
+  reader.readAsDataURL(file);
+}
+
+function updateStats(){
+  const markedCount = document.querySelectorAll(".square.marked").length;
+  const claimedLines = JSON.parse(localStorage.getItem(STORAGE_LINES) || "[]");
+
+  document.getElementById("markedCount").innerText = markedCount;
+  document.getElementById("bingoCount").innerText = claimedLines.length;
+}
+
+async function updateFirebaseScore(points){
+  const playerId = getPlayerId();
+  const playerName = getPlayerName();
+  const playerRef = doc(db,"leaderboard",playerId);
+  const snap = await getDoc(playerRef);
+
+  let currentScore = 0;
+
+  if(snap.exists()){
+    currentScore = snap.data().score || 0;
+  }
+
+  let newScore = currentScore + points;
+
+  await setDoc(playerRef,{
+    name: playerName,
+    score: newScore,
+    updatedAt: serverTimestamp()
+  });
+
+  document.getElementById("scoreDisplay").innerText = newScore;
+}
+
+function checkBingo(){
+  const squares = document.querySelectorAll(".square");
+  const marked = [...squares].map(square=>square.classList.contains("marked"));
+  let claimedLines = JSON.parse(localStorage.getItem(STORAGE_LINES) || "[]");
+
+  wins.forEach((combo,index)=>{
+    if(combo.every(i=>marked[i]) && !claimedLines.includes(index)){
+      claimedLines.push(index);
+      localStorage.setItem(STORAGE_LINES,JSON.stringify(claimedLines));
+
+      showToast("PARADISE BINGO! +1 🌴🍹");
+      launchConfetti();
+      updateFirebaseScore(1);
+    }
+  });
+
+  if(marked.every(Boolean) && !localStorage.getItem(STORAGE_BLACKOUT)){
+    localStorage.setItem(STORAGE_BLACKOUT,"true");
+
+    showToast("PARADISE BLACKOUT! +5 🏆");
+    showBlackoutCelebration();
+    launchConfetti();
+    updateFirebaseScore(5);
+  }
+
+  updateStats();
+}
+
 function launchConfetti(){
   const pieces = ["🌴","🍹","✨","🎉","🍻"];
 
@@ -599,9 +692,12 @@ function launchConfetti(){
     piece.innerText = pieces[Math.floor(Math.random() * pieces.length)];
     piece.style.left = Math.random() * 100 + "vw";
     piece.style.animationDelay = Math.random() * .8 + "s";
+
     document.body.appendChild(piece);
 
-    setTimeout(()=>piece.remove(),3000);
+    setTimeout(()=>{
+      piece.remove();
+    },3000);
   }
 }
 
@@ -613,145 +709,105 @@ function showBlackoutCelebration(){
     overlay.style.display = "none";
   },4500);
 }
-  square.classList.toggle("marked");
-  saveMarked();
-  updateStats();
-  checkBingo();
-}
-
-localStorage.setItem(STORAGE_MARKED,JSON.stringify(marked));
-}
-
-function updateStats(){
-const squares = document.querySelectorAll(".square");
-const markedCount = document.querySelectorAll(".square.marked").length;
-const claimedLines = JSON.parse(localStorage.getItem(STORAGE_LINES) || "[]");
-
-document.getElementById("markedCount").innerText = markedCount;
-document.getElementById("bingoCount").innerText = claimedLines.length;
-}
-
-async function updateFirebaseScore(points){
-const playerId = getPlayerId();
-const playerName = getPlayerName();
-const playerRef = doc(db,"leaderboard",playerId);
-const snap = await getDoc(playerRef);
-
-let currentScore = 0;
-if(snap.exists()){
-currentScore = snap.data().score || 0;
-}
-
-let newScore = currentScore + points;
-
-await setDoc(playerRef,{
-name: playerName,
-score: newScore,
-updatedAt: serverTimestamp()
-});
-
-document.getElementById("scoreDisplay").innerText = newScore;
-}
-
-function checkBingo(){
-const squares = document.querySelectorAll(".square");
-const marked = [...squares].map(square=>square.classList.contains("marked"));
-let claimedLines = JSON.parse(localStorage.getItem(STORAGE_LINES) || "[]");
-
-wins.forEach((combo,index)=>{
-if(combo.every(i=>marked[i]) && !claimedLines.includes(index)){
-claimedLines.push(index);
-localStorage.setItem(STORAGE_LINES,JSON.stringify(claimedLines));
-showToast("PARADISE BINGO! +1 🌴🍹");
-launchConfetti();
-updateFirebaseScore(1);
-}
-});
-
-if(marked.every(Boolean) && !localStorage.getItem(STORAGE_BLACKOUT)){
-localStorage.setItem(STORAGE_BLACKOUT,"true");
-showToast("PARADISE BLACKOUT! +5 🏆");
-showBlackoutCelebration();
-launchConfetti();
-updateFirebaseScore(5);
-}
-
-updateStats();
-}
 
 function listenLeaderboard(){
-const leaderboardRef = collection(db,"leaderboard");
+  const leaderboardRef = collection(db,"leaderboard");
 
-onSnapshot(leaderboardRef,(snapshot)=>{
-let players = [];
+  onSnapshot(leaderboardRef,(snapshot)=>{
+    let players = [];
 
-snapshot.forEach(doc=>{
-players.push(doc.data());
-});
+    snapshot.forEach(doc=>{
+      players.push(doc.data());
+    });
 
-players.sort((a,b)=>(b.score || 0)-(a.score || 0));
+    players.sort((a,b)=>(b.score || 0)-(a.score || 0));
 
-const list = document.getElementById("leaderboardList");
-list.innerHTML = "";
+    const list = document.getElementById("leaderboardList");
+    list.innerHTML = "";
 
-if(players.length===0){
-list.innerHTML = "No scores yet.";
-return;
+    if(players.length === 0){
+      list.innerHTML = "No scores yet.";
+      return;
+    }
+
+    players.forEach((player,index)=>{
+      const row = document.createElement("div");
+      row.classList.add("leaderboard-row");
+
+      row.innerHTML = `
+        <span>${getLeaderboardBadge(index,player.score)} ${index+1}. ${player.name}</span>
+        <strong>${player.score || 0}</strong>
+      `;
+
+      list.appendChild(row);
+    });
+  });
 }
 
-players.forEach((player,index)=>{
-const row = document.createElement("div");
-row.classList.add("leaderboard-row");
-row.innerHTML = `
-<span>${index+1}. ${player.name}</span>
-<strong>${player.score}</strong>
-`;
-list.appendChild(row);
-});
-});
+function getLeaderboardBadge(index,score){
+  if(index === 0) return "👑";
+  if(score >= 10) return "🔥";
+  if(score >= 5) return "🏆";
+  if(score >= 1) return "🍹";
+  return "🌴";
 }
 
 function showToast(message){
-const toast=document.getElementById("toast");
-toast.innerText=message;
-toast.style.display="block";
+  const toast = document.getElementById("toast");
+  toast.innerText = message;
+  toast.style.display = "block";
 
-setTimeout(()=>{
-toast.style.display="none";
-},2200);
+  setTimeout(()=>{
+    toast.style.display = "none";
+  },2200);
+}
+
+function hideLoadingScreen(){
+  const loadingScreen = document.getElementById("loadingScreen");
+
+  if(loadingScreen){
+    loadingScreen.style.opacity = "0";
+
+    setTimeout(()=>{
+      loadingScreen.style.display = "none";
+    },600);
+  }
 }
 
 window.generateBoard = function(){
-localStorage.removeItem(STORAGE_BOARD);
-localStorage.removeItem(STORAGE_MARKED);
-localStorage.removeItem(STORAGE_LINES);
-localStorage.removeItem(STORAGE_BLACKOUT);
-localStorage.removeItem(STORAGE_PHOTOS);
-buildBoard();
-showToast("New board generated 🌴");
+  localStorage.removeItem(STORAGE_BOARD);
+  localStorage.removeItem(STORAGE_MARKED);
+  localStorage.removeItem(STORAGE_LINES);
+  localStorage.removeItem(STORAGE_BLACKOUT);
+  localStorage.removeItem(STORAGE_PHOTOS);
+
+  buildBoard();
+  showToast("New board generated 🌴");
 };
 
 window.resetBoard = function(){
-localStorage.removeItem(STORAGE_MARKED);
-localStorage.removeItem(STORAGE_LINES);
-localStorage.removeItem(STORAGE_BLACKOUT);
-localStorage.removeItem(STORAGE_PHOTOS);
-buildBoard();
-showToast("Your board was reset 🌴");
+  localStorage.removeItem(STORAGE_MARKED);
+  localStorage.removeItem(STORAGE_LINES);
+  localStorage.removeItem(STORAGE_BLACKOUT);
+  localStorage.removeItem(STORAGE_PHOTOS);
+
+  buildBoard();
+  showToast("Your board was reset 🌴");
 };
 
 window.shareBoard = function(){
-if(navigator.share){
-navigator.share({
-title:"Paradise Bingo",
-text:"Bringing back Bingo 🌴🍹",
-url:window.location.href
-});
-}else{
-navigator.clipboard.writeText(window.location.href);
-showToast("Link copied 📋");
-}
+  if(navigator.share){
+    navigator.share({
+      title:"Paradise Bingo",
+      text:"Bringing back Bingo 🌴🍹",
+      url:window.location.href
+    });
+  }else{
+    navigator.clipboard.writeText(window.location.href);
+    showToast("Link copied 📋");
+  }
 };
+
 window.openPhotoAlbum = function(){
   const savedPhotos = JSON.parse(localStorage.getItem(STORAGE_PHOTOS) || "{}");
   const photos = Object.values(savedPhotos);
@@ -762,6 +818,7 @@ window.openPhotoAlbum = function(){
   }
 
   const albumWindow = window.open("");
+
   albumWindow.document.write(`
     <html>
     <head>
@@ -774,20 +831,36 @@ window.openPhotoAlbum = function(){
           color:#18323a;
           padding:20px;
         }
+
         .album{
           display:grid;
           grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
           gap:12px;
         }
+
         img{
           width:100%;
           border-radius:14px;
           box-shadow:0 4px 12px rgba(0,0,0,.18);
         }
+
+        button{
+          background:#008c9e;
+          color:white;
+          border:none;
+          padding:12px 18px;
+          font-size:16px;
+          border-radius:10px;
+          margin:15px;
+          cursor:pointer;
+        }
       </style>
     </head>
+
     <body>
       <h1>🌴 Paradise Photo Album 📸</h1>
+      <button onclick="window.print()">Save / Print Album</button>
+
       <div class="album">
         ${photos.map(photo=>`<img src="${photo}">`).join("")}
       </div>
@@ -795,27 +868,17 @@ window.openPhotoAlbum = function(){
     </html>
   `);
 };
-    
+
 window.addEventListener("load",()=>{
-  setTimeout(()=>{
-    const loadingScreen = document.getElementById("loadingScreen");
-
-    if(loadingScreen){
-      loadingScreen.style.opacity = "0";
-
-      setTimeout(()=>{
-        loadingScreen.style.display = "none";
-      },600);
-    }
-
-  },2500);
+  setTimeout(hideLoadingScreen,2500);
 });
 
 getPlayerName();
 buildBoard();
 listenLeaderboard();
+
+setTimeout(hideLoadingScreen,4000);
 </script>
 
 </body>
 </html>
-
