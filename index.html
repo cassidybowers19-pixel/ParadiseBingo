@@ -233,10 +233,110 @@ text-align:center;
   margin:18px 0;
   z-index:5;
 }
+
+    .square{
+  position:relative;
+}
+
+.square.photo-required::before{
+  content:"📸";
+  position:absolute;
+  top:5px;
+  right:6px;
+  font-size:17px;
+}
+
+.square.photo-square{
+  padding:0;
+  overflow:hidden;
+}
+
+.proof-photo{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.photo-label{
+  position:absolute;
+  bottom:0;
+  left:0;
+  right:0;
+  background:rgba(0,0,0,.55);
+  color:white;
+  font-size:10px;
+  padding:3px;
+}
+
+.confetti-piece{
+  position:fixed;
+  top:-10px;
+  font-size:22px;
+  z-index:99998;
+  animation:confettiFall 2.5s linear forwards;
+  pointer-events:none;
+}
+
+@keyframes confettiFall{
+  to{
+    transform:translateY(110vh) rotate(720deg);
+    opacity:0;
+  }
+}
+
+#blackoutOverlay{
+  position:fixed;
+  inset:0;
+  background:black;
+  color:white;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  z-index:100000;
+}
+
+.blackoutText{
+  font-size:42px;
+  font-weight:bold;
+  animation:blackoutFlash .6s infinite alternate;
+  text-align:center;
+}
+
+.blackoutSub{
+  font-size:18px;
+  margin-top:12px;
+  color:#00c48c;
+}
+
+@keyframes blackoutFlash{
+  from{
+    color:white;
+    transform:scale(1);
+  }
+  to{
+    color:#00c48c;
+    transform:scale(1.08);
+  }
+}
 </style>
 </head>
 
 <body>
+<input
+  id="photoProofInput"
+  type="file"
+  accept="image/*"
+  capture="environment"
+  style="display:none"
+/>
+
+<div id="blackoutOverlay">
+  <div class="blackoutText">BLACKOUT WINNER</div>
+  <div class="blackoutSub">Paradise has been conquered 🏆</div>
+</div>
+    
 <!-- Loading Screen -->
 <div id="loadingScreen">
 
@@ -267,7 +367,8 @@ text-align:center;
 <button onclick="generateBoard()">🎲 New Board</button>
 <button onclick="resetBoard()">↺ Reset My Board</button>
 <button onclick="shareBoard()">📤 Share</button>
-
+<button onclick="openPhotoAlbum()">📸 Photo Album</button>
+    
 <div class="stats">
 Player: <span id="playerNameDisplay"></span><br>
 Marked: <span id="markedCount">1</span> |
@@ -312,35 +413,39 @@ appId: "1:494914762155:web:a9628476635f09e840ceee"
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const words = [
-"Last Call",
-"Farmer Jon 🐓",
-"Soccer is on",
-"Ding Dong Win🎰",
-"Menu Misspelling",
-"Bar Sing-a-Long",
-"Child in Smoking Bar",
-"Someone is Asleep",
-"Jump the Bar",
-"Trivia Win",
-"Barrett playing golden tee",
-"Stranger Danger",
-"Brewers’ sweet potato duck",
-"Bar Games",
-"Someone is BLACKOUT",
-"Hootin and hollerin",
-"Didge Burp",
-"Hot Girl Shit",
-"Fire Alarm 🚨",
-"Someone loses phone",
-"TVs Go Out",
-"Overalls",
-"Bathroom bonding moment",
-"Someone disappears",
-"PDA",
-"Sassy Kyle",
-"USA WIN ⚽️🇺🇸",
-"Shots!"
+const WORD_BANK = [
+  "Last Call",
+  "Farmer Jon 🐓",
+  "Soccer is on",
+  "Ding Dong Win🎰",
+  "Menu Misspelling",
+  "Bar Sing-a-Long",
+  "Child in Smoking Bar",
+  "Someone is Asleep",
+  "Jump the Bar",
+  "Trivia Win",
+  "Barrett playing golden tee",
+  "Stranger Danger",
+  "Brewers’ sweet potato duck",
+  "Bar Games",
+  "Someone is BLACKOUT",
+  "Hootin and hollerin",
+  "Didge Burp",
+  "Hot Girl Shit",
+  "Fire Alarm 🚨",
+  "Someone loses phone",
+  "TVs Go Out",
+  "Overalls",
+  "Bathroom bonding moment",
+  "Someone disappears",
+  "PDA",
+  "Sassy Kyle",
+  "USA WIN ⚽️🇺🇸",
+  "Shots!",
+
+  { text:"Group bar selfie", photo:true },
+  { text:"Best drink photo", photo:true },
+  { text:"Photo with bartender", photo:true }
 ];
 
 const STORAGE_BOARD = "paradise_board";
@@ -385,47 +490,66 @@ return array;
 }
 
 function getBoard(){
-let saved = localStorage.getItem(STORAGE_BOARD);
-if(saved) return JSON.parse(saved);
+  let saved = localStorage.getItem(STORAGE_BOARD);
+  if(saved) return JSON.parse(saved);
 
-let board = shuffle([...words]).slice(0,24);
-localStorage.setItem(STORAGE_BOARD,JSON.stringify(board));
-return board;
+  let board = shuffle([...WORD_BANK]).slice(0,24);
+  localStorage.setItem(STORAGE_BOARD,JSON.stringify(board));
+  return board;
+}
+function getSquareText(item){
+  return typeof item === "string" ? item : item.text;
 }
 
+function requiresPhoto(item){
+  return typeof item === "object" && item.photo === true;
+}
 function buildBoard(){
-const boardDiv = document.getElementById("board");
-boardDiv.innerHTML = "";
+  const boardDiv = document.getElementById("board");
+  boardDiv.innerHTML = "";
 
-let boardWords = [...getBoard()];
-let savedMarked = JSON.parse(localStorage.getItem(STORAGE_MARKED) || "[12]");
+  let boardWords = [...getBoard()];
+  let savedMarked = JSON.parse(localStorage.getItem(STORAGE_MARKED) || "[12]");
+  let savedPhotos = JSON.parse(localStorage.getItem(STORAGE_PHOTOS) || "{}");
 
-for(let i=0;i<25;i++){
-const square = document.createElement("div");
-square.classList.add("square");
+  for(let i=0;i<25;i++){
+    const square = document.createElement("div");
+    square.classList.add("square");
 
-if(i===12){
-square.innerText = "FREE 🌴";
-square.classList.add("marked");
-}else{
-square.innerText = boardWords.shift();
+    if(i===12){
+      square.innerText = "FREE 🌴";
+      square.classList.add("marked");
+    }else{
+      const item = boardWords.shift();
+      square.dataset.item = JSON.stringify(item);
+
+      if(savedPhotos[i]){
+        square.innerHTML = `
+          <img src="${savedPhotos[i]}" class="proof-photo">
+          <div class="photo-label">Photo Proof</div>
+        `;
+        square.classList.add("marked","photo-square");
+      }else{
+        square.innerText = getSquareText(item);
+
+        if(requiresPhoto(item)){
+          square.classList.add("photo-required");
+        }
+      }
+    }
+
+    if(savedMarked.includes(i)){
+      square.classList.add("marked");
+    }
+
+    square.onclick = () => handleSquareClick(square,i);
+
+    boardDiv.appendChild(square);
+  }
+
+  updateStats();
 }
-
-if(savedMarked.includes(i)){
-square.classList.add("marked");
-}
-
-square.onclick = () => {
-square.classList.toggle("marked");
-saveMarked();
-updateStats();
-checkBingo();
-};
-
 boardDiv.appendChild(square);
-}
-
-updateStats();
 }
 
 function saveMarked(){
@@ -437,6 +561,48 @@ if(square.classList.contains("marked")){
 marked.push(index);
 }
 });
+let pendingPhotoSquare = null;
+let pendingPhotoIndex = null;
+
+function handleSquareClick(square,index){
+  if(index === 12) return;
+
+  const item = JSON.parse(square.dataset.item || "{}");
+
+  if(requiresPhoto(item) && !square.classList.contains("photo-square")){
+    pendingPhotoSquare = square;
+    pendingPhotoIndex = index;
+    document.getElementById("photoProofInput").click();
+    return;
+  }
+function launchConfetti(){
+  const pieces = ["🌴","🍹","✨","🎉","🍻"];
+
+  for(let i=0;i<35;i++){
+    const piece = document.createElement("div");
+    piece.classList.add("confetti-piece");
+    piece.innerText = pieces[Math.floor(Math.random() * pieces.length)];
+    piece.style.left = Math.random() * 100 + "vw";
+    piece.style.animationDelay = Math.random() * .8 + "s";
+    document.body.appendChild(piece);
+
+    setTimeout(()=>piece.remove(),3000);
+  }
+}
+
+function showBlackoutCelebration(){
+  const overlay = document.getElementById("blackoutOverlay");
+  overlay.style.display = "flex";
+
+  setTimeout(()=>{
+    overlay.style.display = "none";
+  },4500);
+}
+  square.classList.toggle("marked");
+  saveMarked();
+  updateStats();
+  checkBingo();
+}
 
 localStorage.setItem(STORAGE_MARKED,JSON.stringify(marked));
 }
@@ -482,6 +648,7 @@ if(combo.every(i=>marked[i]) && !claimedLines.includes(index)){
 claimedLines.push(index);
 localStorage.setItem(STORAGE_LINES,JSON.stringify(claimedLines));
 showToast("PARADISE BINGO! +1 🌴🍹");
+launchConfetti();
 updateFirebaseScore(1);
 }
 });
@@ -489,6 +656,8 @@ updateFirebaseScore(1);
 if(marked.every(Boolean) && !localStorage.getItem(STORAGE_BLACKOUT)){
 localStorage.setItem(STORAGE_BLACKOUT,"true");
 showToast("PARADISE BLACKOUT! +5 🏆");
+showBlackoutCelebration();
+launchConfetti();
 updateFirebaseScore(5);
 }
 
@@ -542,6 +711,7 @@ localStorage.removeItem(STORAGE_BOARD);
 localStorage.removeItem(STORAGE_MARKED);
 localStorage.removeItem(STORAGE_LINES);
 localStorage.removeItem(STORAGE_BLACKOUT);
+localStorage.removeItem(STORAGE_PHOTOS);
 buildBoard();
 showToast("New board generated 🌴");
 };
@@ -550,6 +720,7 @@ window.resetBoard = function(){
 localStorage.removeItem(STORAGE_MARKED);
 localStorage.removeItem(STORAGE_LINES);
 localStorage.removeItem(STORAGE_BLACKOUT);
+localStorage.removeItem(STORAGE_PHOTOS);
 buildBoard();
 showToast("Your board was reset 🌴");
 };
@@ -566,6 +737,50 @@ navigator.clipboard.writeText(window.location.href);
 showToast("Link copied 📋");
 }
 };
+window.openPhotoAlbum = function(){
+  const savedPhotos = JSON.parse(localStorage.getItem(STORAGE_PHOTOS) || "{}");
+  const photos = Object.values(savedPhotos);
+
+  if(photos.length === 0){
+    showToast("No photo proofs yet 📸");
+    return;
+  }
+
+  const albumWindow = window.open("");
+  albumWindow.document.write(`
+    <html>
+    <head>
+      <title>Paradise Photo Album</title>
+      <style>
+        body{
+          font-family:Arial,sans-serif;
+          text-align:center;
+          background:#f7f3e9;
+          color:#18323a;
+          padding:20px;
+        }
+        .album{
+          display:grid;
+          grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+          gap:12px;
+        }
+        img{
+          width:100%;
+          border-radius:14px;
+          box-shadow:0 4px 12px rgba(0,0,0,.18);
+        }
+      </style>
+    </head>
+    <body>
+      <h1>🌴 Paradise Photo Album 📸</h1>
+      <div class="album">
+        ${photos.map(photo=>`<img src="${photo}">`).join("")}
+      </div>
+    </body>
+    </html>
+  `);
+};
+    
 window.addEventListener("load",()=>{
   setTimeout(()=>{
     const loadingScreen = document.getElementById("loadingScreen");
