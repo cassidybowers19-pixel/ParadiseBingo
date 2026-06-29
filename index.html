@@ -280,6 +280,29 @@ button{
   font-size:12px;
   text-align:center;
 }
+.admin-panel{
+  position:fixed;
+  bottom:70px;
+  right:15px;
+
+  background:#fff;
+  color:#333;
+
+  padding:15px;
+  border-radius:15px;
+
+  box-shadow:0 6px 20px rgba(0,0,0,.3);
+
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+
+  z-index:9999;
+}
+
+.admin-panel button{
+  width:100%;
+}
 </style>
 </head>
 
@@ -338,8 +361,29 @@ button{
 
 <div id="toast"></div>
 
-<div class="version">
+<div class="version" id="versionLabel">
   Paradise Bingo v2.1.0 • Bingo Engine Edition
+</div>
+<div id="adminPanel" class="admin-panel" style="display:none;">
+
+  <h3>🛠 Admin Mode</h3>
+
+  <button onclick="adminReset()">
+    🧹 Reset Leaderboard
+  </button>
+
+  <button onclick="newBoard()">
+    🎲 Generate New Board
+  </button>
+
+  <button onclick="resetMyBoard()">
+    🔄 Reset My Board
+  </button>
+
+  <button onclick="closeAdminPanel()">
+    ❌ Close
+  </button>
+
 </div>
 
 <script type="module">
@@ -879,6 +923,46 @@ listenLeaderboard();
 
 setTimeout(hideLoadingScreen,4000);
 </script>
+let versionTapCount = 0;
+let versionTapTimer;
+
+document.getElementById("versionLabel").addEventListener("click", () => {
+
+    versionTapCount++;
+
+    clearTimeout(versionTapTimer);
+
+    versionTapTimer = setTimeout(() => {
+        versionTapCount = 0;
+    }, 3000);
+
+    if(versionTapCount >= 7){
+
+        versionTapCount = 0;
+
+        const password = prompt("Enter Admin Password");
+
+        if(password === "Hammertime#21"){
+
+            document.getElementById("adminPanel").style.display = "flex";
+
+            showToast("🛠 Admin Mode Enabled");
+
+        }else{
+
+            showToast("Incorrect Password");
+
+        }
+
+    }
+
+});
+
+function closeAdminPanel(){
+
+    document.getElementById("adminPanel").style.display = "none";
+
+}
 
 </body>
 </html>
