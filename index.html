@@ -303,6 +303,21 @@ button{
 .admin-panel button{
   width:100%;
 }
+
+.admin-panel input,
+.admin-panel textarea{
+  width:100%;
+  box-sizing:border-box;
+  border:1px solid #ccc;
+  border-radius:10px;
+  padding:10px;
+  font-size:14px;
+  font-family:Arial,sans-serif;
+}
+
+.admin-panel textarea{
+  min-height:220px;
+}
 </style>
 </head>
 
@@ -368,15 +383,19 @@ button{
 
   <h3>🛠 Admin Mode</h3>
 
+  <button onclick="openSeasonEditor()">
+    🌴 Edit Current Season
+  </button>
+
   <button onclick="adminReset()">
     🧹 Reset Leaderboard
   </button>
 
-  <button onclick="newBoard()">
+  <button onclick="generateBoard()">
     🎲 Generate New Board
   </button>
 
-  <button onclick="resetMyBoard()">
+  <button onclick="resetBoard()">
     🔄 Reset My Board
   </button>
 
@@ -384,6 +403,21 @@ button{
     ❌ Close
   </button>
 
+</div>
+
+<div id="seasonEditorPanel" class="admin-panel" style="display:none;">
+  <h3>🌴 Season Editor</h3>
+
+  <input id="seasonName" placeholder="July 2026" style="width:100%;padding:8px;box-sizing:border-box;">
+
+  <p style="font-size:13px;margin:0;">
+    One square per line. Add * at the end if photo evidence is required.
+  </p>
+
+  <textarea id="seasonSquares" rows="14"></textarea>
+
+  <button onclick="saveActiveSeason()">💾 Save Season</button>
+  <button onclick="closeSeasonEditor()">❌ Close Editor</button>
 </div>
 
 <script type="module">
@@ -394,6 +428,8 @@ import {
   doc,
   setDoc,
   getDoc,
+  getDocs,
+  deleteDoc,
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
@@ -410,7 +446,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const WORD_BANK = [
+const BACKUP_WORD_BANK = [
   "Last Call",
   "Farmer Jon 🐓",
   "Soccer is on",
@@ -443,7 +479,10 @@ const WORD_BANK = [
   { text:"Someone is Asleep", photo:true },
   { text:"Photo with bartender", photo:true }
 ];
+let WORD_BANK = [...BACKUP_WORD_BANK];
 
+const APP_ID = "paradise";
+const ACTIVE_SEASON_DOC = doc(db, "appSettings", APP_ID);
 const STORAGE_BOARD = "paradise_board";
 const STORAGE_MARKED = "paradise_marked";
 const STORAGE_LINES = "paradise_lines";
@@ -527,7 +566,20 @@ function getBoard(){
 
   return board;
 }
+async function loadActiveSeason(){
+  const seasonSnap = await getDoc(ACTIVE_SEASON_DOC);
 
+  if(seasonSnap.exists()){
+    const data = seasonSnap.data();
+
+    if(data.squares && data.squares.length >= 24){
+      WORD_BANK = data.squares;
+      return;
+    }
+  }
+
+  WORD_BANK = [...BACKUP_WORD_BANK];
+}
 function buildBoard(){
   const boardDiv = document.getElementById("board");
   boardDiv.innerHTML = "";
@@ -913,57 +965,153 @@ window.openPhotoAlbum = function(){
   `);
 };
 
-window.addEventListener("load",()=>{
-  setTimeout(hideLoadingScreen,2500);
-});
 
-getPlayerName();
-buildBoard();
-listenLeaderboard();
+window.adminReset = async function(){
+  const confirmReset = confirm("This clears the live leaderboard for everyone. Continue?");
 
-setTimeout(hideLoadingScreen,4000);
-</script>
-<script>
+  if(!confirmReset){
+    return;
+  }
+
+  const snapshot = await getDocs(collection(db,"leaderboard"));
+
+  const deletePromises = [];
+
+  snapshot.forEach((playerDoc)=>{
+    deletePromises.push(deleteDoc(doc(db,"leaderboard",playerDoc.id)));
+  });
+
+  await Promise.all(deletePromises);
+
+  showToast("Leaderboard cleared 🌴");
+};
+
+window.openSeasonEditor = function(){
+  const seasonInput = document.getElementById("seasonName");
+  const squaresInput = document.getElementById("seasonSquares");
+
+  seasonInput.value = new Date().toLocaleString("default", {
+    month: "long",
+    year: "numeric"
+  });
+
+  squaresInput.value = WORD_BANK.map(square => {
+    if(typeof square === "object" && square.photo){
+      return `${square.text} *`;
+    }
+
+    if(typeof square === "object"){
+      return square.text;
+    }
+
+    return square;
+  }).join("\n");
+
+  document.getElementById("seasonEditorPanel").style.display = "flex";
+};
+
+window.closeSeasonEditor = function(){
+  document.getElementById("seasonEditorPanel").style.display = "none";
+};
+
+window.saveActiveSeason = async function(){
+  const seasonName = document.getElementById("seasonName").value.trim();
+  const rawSquares = document.getElementById("seasonSquares").value;
+
+  const squares = rawSquares
+    .split("\n")
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .map(line => {
+      const needsPhoto = line.endsWith("*");
+      const text = line.replace(/\*$/, "").trim();
+
+      if(needsPhoto){
+        return { text:text, photo:true };
+      }
+
+      return text;
+    });
+
+  if(!seasonName){
+    alert("Please enter a season name.");
+    return;
+  }
+
+  if(squares.length < 24){
+    alert("You need at least 24 squares.");
+    return;
+  }
+
+  await setDoc(ACTIVE_SEASON_DOC, {
+    app: APP_ID,
+    seasonName: seasonName,
+    seasonId: new Date().toISOString().slice(0,7),
+    squares: squares,
+    updatedAt: serverTimestamp()
+  });
+
+  WORD_BANK = squares;
+
+  localStorage.removeItem(STORAGE_BOARD);
+  localStorage.removeItem(STORAGE_MARKED);
+  localStorage.removeItem(STORAGE_LINES);
+  localStorage.removeItem(STORAGE_BLACKOUT);
+  localStorage.removeItem(STORAGE_PHOTOS);
+
+  buildBoard();
+
+  showToast("Season updated 🌴");
+  closeSeasonEditor();
+};
+
+window.closeAdminPanel = function(){
+  document.getElementById("adminPanel").style.display = "none";
+  document.getElementById("seasonEditorPanel").style.display = "none";
+};
+
 let versionTapCount = 0;
 let versionTapTimer;
 
 document.getElementById("versionLabel").addEventListener("click", () => {
+  versionTapCount++;
 
-    versionTapCount++;
+  clearTimeout(versionTapTimer);
 
-    clearTimeout(versionTapTimer);
+  versionTapTimer = setTimeout(() => {
+    versionTapCount = 0;
+  }, 3000);
 
-    versionTapTimer = setTimeout(() => {
-        versionTapCount = 0;
-    }, 3000);
+  if(versionTapCount >= 7){
+    versionTapCount = 0;
 
-    if(versionTapCount >= 7){
+    const password = prompt("Enter Admin Password");
 
-        versionTapCount = 0;
-
-        const password = prompt("Enter Admin Password");
-
-        if(password === "Hammertime#21"){
-
-            document.getElementById("adminPanel").style.display = "flex";
-
-            showToast("🛠 Admin Mode Enabled");
-
-        }else{
-
-            showToast("Incorrect Password");
-
-        }
-
+    if(password === "Hammertime#21"){
+      document.getElementById("adminPanel").style.display = "flex";
+      showToast("🛠 Admin Mode Enabled");
+    }else{
+      showToast("Incorrect Password");
     }
-
+  }
 });
 
-function closeAdminPanel(){
 
-    document.getElementById("adminPanel").style.display = "none";
+window.addEventListener("load",()=>{
+  setTimeout(hideLoadingScreen,2500);
+});
 
+async function startApp(){
+  await loadActiveSeason();
+
+  getPlayerName();
+  buildBoard();
+  listenLeaderboard();
 }
+
+startApp();
+
+setTimeout(hideLoadingScreen,4000);
 </script>
 </body>
 </html>
