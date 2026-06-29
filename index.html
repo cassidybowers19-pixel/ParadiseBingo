@@ -421,7 +421,7 @@ button{
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
 import {
   getFirestore,
   collection,
@@ -432,7 +432,7 @@ import {
   deleteDoc,
   onSnapshot,
   serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBK5Xy-5IoB3e0tTIuve-S0wLo7OEjEgh0",
@@ -567,18 +567,25 @@ function getBoard(){
   return board;
 }
 async function loadActiveSeason(){
-  const seasonSnap = await getDoc(ACTIVE_SEASON_DOC);
+  try{
+    const seasonSnap = await getDoc(ACTIVE_SEASON_DOC);
 
-  if(seasonSnap.exists()){
-    const data = seasonSnap.data();
+    if(seasonSnap.exists()){
+      const data = seasonSnap.data();
 
-    if(data.squares && data.squares.length >= 24){
-      WORD_BANK = data.squares;
-      return;
+      if(data.squares && data.squares.length >= 24){
+        WORD_BANK = data.squares;
+        return;
+      }
     }
-  }
 
-  WORD_BANK = [...BACKUP_WORD_BANK];
+    WORD_BANK = [...BACKUP_WORD_BANK];
+
+  }catch(error){
+    console.error("Season load failed:", error);
+    WORD_BANK = [...BACKUP_WORD_BANK];
+    showToast("Using backup board 🌴");
+  }
 }
 function buildBoard(){
   const boardDiv = document.getElementById("board");
