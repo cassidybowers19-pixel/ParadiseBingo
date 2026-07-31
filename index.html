@@ -9,7 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Paradise Bingo">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
 
 <title>Paradise Bingo 🌴</title>
 
@@ -495,6 +496,7 @@ button{
 <button onclick="shareBoard()">📤 Share</button>
 <button onclick="openMemories()">📸 Memories</button>
 <button onclick="openProfile()">🎖 My Badges</button>
+<button onclick="changePlayerName()">✏️ Change Name</button>
 
 <div class="stats">
   Player: <span id="playerNameDisplay"></span><br>
@@ -550,7 +552,7 @@ button{
 <div id="toast"></div>
 
 <div class="version" id="versionLabel">
-  Paradise Bingo v3.0.0 • Achievements Edition
+  Paradise Bingo v3.1.0 • Social Achievements Edition
 </div>
 <div id="adminPanel" class="admin-panel" style="display:none;">
 
@@ -597,6 +599,10 @@ button{
 
   <textarea id="seasonSquares" rows="14"></textarea>
 
+  <label style="font-size:13px;font-weight:bold;">Chaos Agent qualifying squares</label>
+  <p style="font-size:12px;margin:0;">One square per line. These can change each month.</p>
+  <textarea id="chaosSquares" rows="5" placeholder="Fire Alarm 🚨&#10;TVs Go Out"></textarea>
+
   <button onclick="saveActiveSeason()">💾 Save Season</button>
   <button onclick="closeSeasonEditor()">❌ Close Editor</button>
 </div>
@@ -632,8 +638,25 @@ button{
       <option value="monthly_winner">Monthly winner</option>
       <option value="most_photos">Most photos in month</option>
       <option value="most_bingos">Most bingos in month</option>
+      <option value="shares">Board shares</option>
+      <option value="referrals">Successful referrals</option>
+      <option value="photo_appearances">Photo appearances</option>
+      <option value="photo_people">Photo with 3+ people</option>
+      <option value="photos_one_night">Photo challenges in one night</option>
+      <option value="consecutive_days">Consecutive play days</option>
+      <option value="weekend_days">Friday, Saturday, and Sunday participation</option>
+      <option value="consecutive_months">Consecutive months played</option>
+      <option value="time_after_midnight">Activity after midnight</option>
+      <option value="time_before_noon">Activity before noon</option>
+      <option value="specific_square">Specific square completed</option>
+      <option value="specific_photo_square">Specific photo-proof square completed</option>
+      <option value="chaos_square">Monthly Chaos Agent square</option>
+      <option value="pure_luck">Bingo with no photo-proof squares</option>
       <option value="manual">Manual award</option>
     </select>
+    <label>Requirement detail</label>
+    <input id="badgeCondition" placeholder="Example: Ding Dong Win">
+    <p class="small-note">Use this for a specific square. Chaos Agent uses the monthly chaos-square list.</p>
     <label>Threshold</label>
     <input id="badgeThreshold" type="number" min="1" value="1">
     <label><input id="badgeActive" type="checkbox" checked style="width:auto;"> Active</label>
@@ -740,6 +763,8 @@ let ACTIVE_SEASON_ID = new Date().toISOString().slice(0,7);
 let ACTIVE_SEASON_NAME = new Date().toLocaleString("default", {month:"long",year:"numeric"});
 let ACTIVE_YEAR = new Date().getFullYear().toString();
 let badgeDefinitionsCache = [];
+let ACTIVE_CHAOS_SQUARES = [];
+let currentPhotoMeta = null;
 
 const STORAGE_BOARD = "paradise_board";
 const STORAGE_MARKED = "paradise_marked";
@@ -749,6 +774,7 @@ const STORAGE_ID = "paradise_player_id";
 const STORAGE_BLACKOUT = "paradise_blackout";
 const STORAGE_PHOTOS = "paradise_photos";
 const STORAGE_SEASON = "paradise_active_season";
+const STORAGE_REFERRAL = "paradise_referral_processed";
 
 let pendingPhotoSquare = null;
 let pendingPhotoIndex = null;
@@ -795,6 +821,25 @@ function getPlayerName(){
   document.getElementById("playerNameDisplay").innerText = name;
   return name;
 }
+
+window.changePlayerName = async function(){
+  const currentName = localStorage.getItem(STORAGE_PLAYER) || "Anonymous Paradise Player";
+  const entered = prompt("Enter your new Paradise Bingo name:", currentName);
+  if(!entered || !entered.trim()) return;
+
+  const newName = entered.trim().slice(0,40);
+  const playerId = getPlayerId();
+  localStorage.setItem(STORAGE_PLAYER,newName);
+  document.getElementById("playerNameDisplay").innerText = newName;
+
+  await Promise.all([
+    setDoc(doc(db,PLAYER_COLLECTION,playerId),{name:newName,updatedAt:serverTimestamp()},{merge:true}),
+    setDoc(doc(db,MONTHLY_COLLECTION,ACTIVE_SEASON_ID,"players",playerId),{name:newName,updatedAt:serverTimestamp()},{merge:true}),
+    setDoc(doc(db,YEARLY_COLLECTION,ACTIVE_YEAR,"players",playerId),{name:newName,updatedAt:serverTimestamp()},{merge:true})
+  ]);
+
+  showToast("Player name updated 🌴");
+};
 
 function shuffle(array){
   for(let i=array.length-1;i>0;i--){
@@ -848,6 +893,7 @@ async function loadActiveSeason(){
       ACTIVE_SEASON_ID = data.seasonId || ACTIVE_SEASON_ID;
       ACTIVE_SEASON_NAME = data.seasonName || ACTIVE_SEASON_NAME;
       ACTIVE_YEAR = String((ACTIVE_SEASON_ID || "").slice(0,4) || new Date().getFullYear());
+      ACTIVE_CHAOS_SQUARES = Array.isArray(data.chaosSquares) ? data.chaosSquares : [];
     }else{
       WORD_BANK = [...BACKUP_WORD_BANK];
     }
@@ -860,6 +906,126 @@ async function loadActiveSeason(){
   const savedSeason = localStorage.getItem(STORAGE_SEASON);
   if(savedSeason && savedSeason !== ACTIVE_SEASON_ID) clearLocalSeasonProgress();
   localStorage.setItem(STORAGE_SEASON,ACTIVE_SEASON_ID);
+}
+
+function localDateKey(date=new Date()){
+  const y=date.getFullYear();
+  const m=String(date.getMonth()+1).padStart(2,"0");
+  const d=String(date.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+}
+
+function nightKey(date=new Date()){
+  const shifted=new Date(date);
+  if(shifted.getHours()<6) shifted.setDate(shifted.getDate()-1);
+  return localDateKey(shifted);
+}
+
+function monthIndex(seasonId){
+  const [y,m]=seasonId.split("-").map(Number);
+  return y*12+(m-1);
+}
+
+function hasConsecutiveMonths(seasons,count){
+  const values=[...new Set(seasons)].sort().map(monthIndex);
+  let streak=1;
+  for(let i=1;i<values.length;i++){
+    streak=values[i]===values[i-1]+1?streak+1:1;
+    if(streak>=count) return true;
+  }
+  return count<=1 && values.length>0;
+}
+
+function hasConsecutiveDays(dateKeys,count){
+  const values=[...new Set(dateKeys)].sort().map(v=>new Date(`${v}T12:00:00`).getTime());
+  let streak=1;
+  for(let i=1;i<values.length;i++){
+    const diff=Math.round((values[i]-values[i-1])/86400000);
+    streak=diff===1?streak+1:1;
+    if(streak>=count) return true;
+  }
+  return count<=1 && values.length>0;
+}
+
+function hasWeekendSet(dateKeys){
+  const set=new Set(dateKeys);
+  for(const key of set){
+    const d=new Date(`${key}T12:00:00`);
+    if(d.getDay()!==5) continue;
+    const sat=new Date(d);sat.setDate(d.getDate()+1);
+    const sun=new Date(d);sun.setDate(d.getDate()+2);
+    if(set.has(localDateKey(sat))&&set.has(localDateKey(sun))) return true;
+  }
+  return false;
+}
+
+async function recordActivity({squareText=null,photo=false,share=false,peopleCount=0,pureLuck=false}={}){
+  const playerId=getPlayerId();
+  const profileRef=doc(db,PLAYER_COLLECTION,playerId);
+  const now=new Date();
+  const dateKey=localDateKey(now);
+  const thisNight=nightKey(now);
+
+  await runTransaction(db,async transaction=>{
+    const snap=await transaction.get(profileRef);
+    const profile=snap.exists()?snap.data():{};
+    const activeDates=Array.from(new Set([...(profile.activeDates||[]),dateKey]));
+    const seasonsPlayed=Array.from(new Set([...(profile.seasonsPlayed||[]),ACTIVE_SEASON_ID]));
+    const photosByNight={...(profile.photosByNight||{})};
+    if(photo) photosByNight[thisNight]=(photosByNight[thisNight]||0)+1;
+
+    transaction.set(profileRef,{
+      name:getPlayerName(),
+      activeDates,
+      seasonsPlayed,
+      shares:(profile.shares||0)+(share?1:0),
+      referrals:profile.referrals||0,
+      photoAppearances:profile.photoAppearances||0,
+      photosWithThreePlus:(profile.photosWithThreePlus||0)+(peopleCount>=3?1:0),
+      photosByNight,
+      afterMidnightActions:(profile.afterMidnightActions||0)+(now.getHours()<5?1:0),
+      beforeNoonActions:(profile.beforeNoonActions||0)+(now.getHours()<12?1:0),
+      pureLuckBingos:(profile.pureLuckBingos||0)+(pureLuck?1:0),
+      completedSquares:Array.from(new Set([...(profile.completedSquares||[]),...(squareText?[squareText]:[])])),
+      completedPhotoSquares:Array.from(new Set([...(profile.completedPhotoSquares||[]),...(photo&&squareText?[squareText]:[])])),
+      updatedAt:serverTimestamp()
+    },{merge:true});
+  });
+
+  await checkAutomaticBadges(playerId);
+}
+
+async function processReferral(){
+  const params=new URLSearchParams(window.location.search);
+  const referrerId=params.get("ref");
+  if(!referrerId || referrerId===getPlayerId() || localStorage.getItem(STORAGE_REFERRAL)) return;
+
+  const referrerRef=doc(db,PLAYER_COLLECTION,referrerId);
+  await runTransaction(db,async transaction=>{
+    const snap=await transaction.get(referrerRef);
+    const current=snap.exists()?snap.data():{};
+    transaction.set(referrerRef,{referrals:(current.referrals||0)+1,updatedAt:serverTimestamp()},{merge:true});
+  });
+  localStorage.setItem(STORAGE_REFERRAL,referrerId);
+  await checkAutomaticBadges(referrerId);
+}
+
+async function incrementPhotoAppearances(taggedNames){
+  if(!taggedNames.length) return;
+  const profiles=await getDocs(collection(db,PLAYER_COLLECTION));
+  const normalized=new Map();
+  profiles.forEach(d=>normalized.set((d.data().name||"").trim().toLowerCase(),d.id));
+  for(const name of taggedNames){
+    const playerId=normalized.get(name.trim().toLowerCase());
+    if(!playerId) continue;
+    const profileRef=doc(db,PLAYER_COLLECTION,playerId);
+    await runTransaction(db,async transaction=>{
+      const snap=await transaction.get(profileRef);
+      const current=snap.exists()?snap.data():{};
+      transaction.set(profileRef,{photoAppearances:(current.photoAppearances||0)+1,updatedAt:serverTimestamp()},{merge:true});
+    });
+    await checkAutomaticBadges(playerId);
+  }
 }
 
 function buildBoard(){
@@ -921,9 +1087,13 @@ function handleSquareClick(square,index){
     return;
   }
 
+  const wasMarked = square.classList.contains("marked");
   square.classList.toggle("marked");
   saveMarked();
   updateStats();
+  if(!wasMarked){
+    recordActivity({squareText:getSquareText(item)});
+  }
   checkBingo();
 }
 
@@ -967,9 +1137,20 @@ document.getElementById("photoProofInput").addEventListener("change",function(ev
     updateStats();
     checkBingo();
 
+    const threePlus = confirm("Does this photo include 3 or more people?");
+    const taggedInput = prompt("Optional: enter Paradise player names shown in the photo, separated by commas.");
+    const taggedPlayers = (taggedInput || "").split(",").map(name=>name.trim()).filter(Boolean);
+    currentPhotoMeta = {
+      peopleCount: threePlus ? 3 : 0,
+      taggedPlayers
+    };
+
+    await recordActivity({squareText,photo:true,peopleCount:currentPhotoMeta.peopleCount});
+    await incrementPhotoAppearances(taggedPlayers);
+
     showToast("Photo proof complete 📸");
 
-    await uploadPhotoToSharedGallery(squareText, photoData);
+    await uploadPhotoToSharedGallery(squareText, photoData, currentPhotoMeta);
 
     pendingPhotoSquare = null;
     pendingPhotoIndex = null;
@@ -1064,6 +1245,17 @@ async function updatePlayerStats({scorePoints=0,bingos=0,blackouts=0,photos=0,sq
       monthlyWins:profile.monthlyWins||0,
       badges:profile.badges||[],
       seasonsPlayed,
+      activeDates:profile.activeDates||[],
+      shares:profile.shares||0,
+      referrals:profile.referrals||0,
+      photoAppearances:profile.photoAppearances||0,
+      photosWithThreePlus:profile.photosWithThreePlus||0,
+      photosByNight:profile.photosByNight||{},
+      afterMidnightActions:profile.afterMidnightActions||0,
+      beforeNoonActions:profile.beforeNoonActions||0,
+      pureLuckBingos:profile.pureLuckBingos||0,
+      completedSquares:profile.completedSquares||[],
+      completedPhotoSquares:profile.completedPhotoSquares||[],
       updatedAt:serverTimestamp()
     },{merge:true});
   });
@@ -1083,9 +1275,17 @@ function checkBingo(){
       claimedLines.push(index);
       localStorage.setItem(STORAGE_LINES,JSON.stringify(claimedLines));
 
+      const pureLuck = combo
+        .filter(i=>i!==12)
+        .every(i=>{
+          const item=JSON.parse(squares[i].dataset.item || "{}");
+          return !requiresPhoto(item);
+        });
+
       showToast("PARADISE BINGO! +1 🌴🍹");
       launchConfetti();
       updatePlayerStats({scorePoints:1,bingos:1});
+      if(pureLuck) recordActivity({pureLuck:true});
     }
   });
 
@@ -1128,7 +1328,7 @@ function showBlackoutCelebration(){
   },4500);
 }
 
-async function uploadPhotoToSharedGallery(squareText, photoDataUrl){
+async function uploadPhotoToSharedGallery(squareText, photoDataUrl, meta={}){
   try{
     const playerName = getPlayerName();
     const seasonId = getCurrentSeasonId();
@@ -1150,6 +1350,9 @@ async function uploadPhotoToSharedGallery(squareText, photoDataUrl){
       seasonId: seasonId,
       seasonName: seasonName,
       photoUrl: photoUrl,
+      playerId: getPlayerId(),
+      peopleCount: meta.peopleCount || 0,
+      taggedPlayers: meta.taggedPlayers || [],
       createdAt: serverTimestamp()
     });
 
@@ -1345,16 +1548,24 @@ window.resetBoard = function(){
   showToast("Your board was reset 🌴");
 };
 
-window.shareBoard = function(){
-  if(navigator.share){
-    navigator.share({
-      title:"Paradise Bingo",
-      text:"Bringing back Bingo 🌴🍹",
-      url:window.location.href
-    });
-  }else{
-    navigator.clipboard.writeText(window.location.href);
-    showToast("Link copied 📋");
+window.shareBoard = async function(){
+  const shareUrl = new URL(window.location.href);
+  shareUrl.searchParams.set("ref",getPlayerId());
+
+  try{
+    if(navigator.share){
+      await navigator.share({
+        title:"Paradise Bingo",
+        text:"Bringing back Bingo 🌴🍹",
+        url:shareUrl.toString()
+      });
+    }else{
+      await navigator.clipboard.writeText(shareUrl.toString());
+      showToast("Referral link copied 📋");
+    }
+    await recordActivity({share:true});
+  }catch(error){
+    if(error?.name!=="AbortError") console.error("Share failed:",error);
   }
 };
 
@@ -1458,7 +1669,6 @@ async function loadBadgeDefinitions(){
 
 async function seedStarterBadges(){
   await loadBadgeDefinitions();
-  if(badgeDefinitionsCache.length) return;
   const starters=[
     {id:"first-snapshot",name:"First Snapshot",icon:"📸",description:"Submit your first photo proof.",triggerType:"photos",threshold:1,active:true},
     {id:"memory-maker",name:"Memory Maker",icon:"🎞️",description:"Submit 10 photo proofs over time.",triggerType:"photos",threshold:10,active:true},
@@ -1466,11 +1676,30 @@ async function seedStarterBadges(){
     {id:"blackout-boss",name:"Blackout Boss",icon:"⚫",description:"Complete a full-board blackout.",triggerType:"blackouts",threshold:1,active:true},
     {id:"paradise-champion",name:"Paradise Champion",icon:"👑",description:"Win a monthly Paradise leaderboard.",triggerType:"monthly_winner",threshold:1,active:true},
     {id:"paradise-paparazzi",name:"Paradise Paparazzi",icon:"📷",description:"Submit the most photos in a finalized month.",triggerType:"most_photos",threshold:1,active:true},
-    {id:"bingo-beast",name:"Bingo Beast",icon:"🔥",description:"Complete the most bingos in a finalized month.",triggerType:"most_bingos",threshold:1,active:true}
+    {id:"bingo-beast",name:"Bingo Beast",icon:"🔥",description:"Complete the most bingos in a finalized month.",triggerType:"most_bingos",threshold:1,active:true},
+    {id:"cheers",name:"Cheers",icon:"🥂",description:"Submit a photo with 3 or more people.",triggerType:"photo_people",threshold:1,active:true},
+    {id:"weekend-warrior",name:"Weekend Warrior",icon:"🏝️",description:"Participate on Friday, Saturday, and Sunday of one weekend.",triggerType:"weekend_days",threshold:3,active:true},
+    {id:"night-owl",name:"Night Owl",icon:"🦉",description:"Use the app after midnight.",triggerType:"time_after_midnight",threshold:1,active:true},
+    {id:"early-bird",name:"Early Bird",icon:"🌅",description:"Use the app before noon.",triggerType:"time_before_noon",threshold:1,active:true},
+    {id:"bender-status",name:"Bender Status",icon:"🍻",description:"Participate on 3 consecutive days.",triggerType:"consecutive_days",threshold:3,active:true},
+    {id:"dedicated-player",name:"Dedicated Player",icon:"📅",description:"Play in 3 consecutive monthly seasons.",triggerType:"consecutive_months",threshold:3,active:true},
+    {id:"lucky-streak",name:"Lucky Streak",icon:"🎰",description:"Complete a Ding Dong photo square.",triggerType:"specific_photo_square",condition:"Ding Dong",threshold:1,active:true},
+    {id:"chaos-agent",name:"Chaos Agent",icon:"🚨",description:"Complete one of the current month's designated chaos squares.",triggerType:"chaos_square",threshold:1,active:true},
+    {id:"sleephead",name:"Sleephead",icon:"😴",description:"Complete the Someone is Asleep square.",triggerType:"specific_square",condition:"Someone is Asleep",threshold:1,active:true},
+    {id:"welcome-committee",name:"Welcome Committee",icon:"👋",description:"Invite a new player who opens Paradise Bingo.",triggerType:"referrals",threshold:1,active:true},
+    {id:"party-starter",name:"Party Starter",icon:"🎉",description:"Share your Paradise board 5 times.",triggerType:"shares",threshold:5,active:true},
+    {id:"squad-goals",name:"Squad Goals",icon:"👯",description:"Be tagged as appearing in 5 photos.",triggerType:"photo_appearances",threshold:5,active:true},
+    {id:"life-of-the-party",name:"Life of the Party",icon:"🪩",description:"Complete 5 photo challenges in one night.",triggerType:"photos_one_night",threshold:5,active:true},
+    {id:"pure-luck",name:"Pure Luck",icon:"🍀",description:"Get a bingo using no photo-proof squares.",triggerType:"pure_luck",threshold:1,active:true}
   ];
-  const batch=writeBatch(db);
-  starters.forEach(b=>batch.set(doc(db,BADGE_COLLECTION,APP_ID,"badges",b.id),{...b,updatedAt:serverTimestamp()}));
-  await batch.commit();
+
+  const existingIds=new Set(badgeDefinitionsCache.map(b=>b.id));
+  const missing=starters.filter(b=>!existingIds.has(b.id));
+  if(missing.length){
+    const batch=writeBatch(db);
+    missing.forEach(b=>batch.set(doc(db,BADGE_COLLECTION,APP_ID,"badges",b.id),{...b,updatedAt:serverTimestamp()}));
+    await batch.commit();
+  }
   await loadBadgeDefinitions();
 }
 
@@ -1487,14 +1716,52 @@ async function awardBadge(playerId,badge,seasonId=ACTIVE_SEASON_ID){
 }
 
 async function checkAutomaticBadges(playerId){
-  if(!badgeDefinitionsCache.length)await loadBadgeDefinitions();
+  if(!badgeDefinitionsCache.length) await loadBadgeDefinitions();
   const profileSnap=await getDoc(doc(db,PLAYER_COLLECTION,playerId));
   const yearSnap=await getDoc(doc(db,YEARLY_COLLECTION,ACTIVE_YEAR,"players",playerId));
   const profile=profileSnap.exists()?profileSnap.data():{};
   const year=yearSnap.exists()?yearSnap.data():{};
-  for(const badge of badgeDefinitionsCache.filter(b=>b.active!==false&&["photos","bingos","blackouts","score"].includes(b.triggerType))){
-    const values={photos:profile.totalPhotos||0,bingos:profile.totalBingos||0,blackouts:profile.totalBlackouts||0,score:year.score||0};
-    if(values[badge.triggerType]>=(badge.threshold||1))await awardBadge(playerId,badge);
+
+  const maxPhotosOneNight=Math.max(0,...Object.values(profile.photosByNight||{}));
+  const completedSquares=(profile.completedSquares||[]).map(x=>String(x).toLowerCase());
+  const completedPhotoSquares=(profile.completedPhotoSquares||[]).map(x=>String(x).toLowerCase());
+
+  for(const badge of badgeDefinitionsCache.filter(b=>b.active!==false)){
+    const threshold=badge.threshold||1;
+    let earned=false;
+
+    switch(badge.triggerType){
+      case "photos": earned=(profile.totalPhotos||0)>=threshold; break;
+      case "bingos": earned=(profile.totalBingos||0)>=threshold; break;
+      case "blackouts": earned=(profile.totalBlackouts||0)>=threshold; break;
+      case "score": earned=(year.score||0)>=threshold; break;
+      case "shares": earned=(profile.shares||0)>=threshold; break;
+      case "referrals": earned=(profile.referrals||0)>=threshold; break;
+      case "photo_appearances": earned=(profile.photoAppearances||0)>=threshold; break;
+      case "photo_people": earned=(profile.photosWithThreePlus||0)>=threshold; break;
+      case "photos_one_night": earned=maxPhotosOneNight>=threshold; break;
+      case "consecutive_days": earned=hasConsecutiveDays(profile.activeDates||[],threshold); break;
+      case "weekend_days": earned=hasWeekendSet(profile.activeDates||[]); break;
+      case "consecutive_months": earned=hasConsecutiveMonths(profile.seasonsPlayed||[],threshold); break;
+      case "time_after_midnight": earned=(profile.afterMidnightActions||0)>=threshold; break;
+      case "time_before_noon": earned=(profile.beforeNoonActions||0)>=threshold; break;
+      case "specific_square":{
+        const condition=(badge.condition||"").toLowerCase();
+        earned=condition && completedSquares.some(square=>square.includes(condition));
+        break;
+      }
+      case "specific_photo_square":{
+        const condition=(badge.condition||"").toLowerCase();
+        earned=condition && completedPhotoSquares.some(square=>square.includes(condition));
+        break;
+      }
+      case "chaos_square":
+        earned=completedSquares.some(square=>ACTIVE_CHAOS_SQUARES.some(chaos=>square===String(chaos).toLowerCase()));
+        break;
+      case "pure_luck": earned=(profile.pureLuckBingos||0)>=threshold; break;
+    }
+
+    if(earned) await awardBadge(playerId,badge);
   }
 }
 
@@ -1517,6 +1784,10 @@ window.openProfile=async function(){
       <div class="profile-stat"><strong>${p.totalBingos||0}</strong><br>Total bingos</div>
       <div class="profile-stat"><strong>${p.totalBlackouts||0}</strong><br>Blackouts</div>
       <div class="profile-stat"><strong>${p.monthlyWins||0}</strong><br>Monthly wins</div>
+      <div class="profile-stat"><strong>${p.shares||0}</strong><br>Board shares</div>
+      <div class="profile-stat"><strong>${p.referrals||0}</strong><br>New players invited</div>
+      <div class="profile-stat"><strong>${p.photoAppearances||0}</strong><br>Photo appearances</div>
+      <div class="profile-stat"><strong>${(p.activeDates||[]).length}</strong><br>Active days</div>
     </div>
     <h3>Badges</h3>
     <div>${badges.length?badges.map(b=>`<span class="badge-chip" title="${b.description||""}">${b.icon||"🎖"} ${b.name}</span>`).join(""):"No badges earned yet."}</div>`;
@@ -1528,14 +1799,16 @@ window.openBadgeManager=async function(){
   await renderBadgeManager();
 };
 window.closeBadgeManager=function(){document.getElementById("badgeManagerPanel").style.display="none";};
-window.clearBadgeForm=function(){["badgeId","badgeName","badgeIcon","badgeDescription"].forEach(id=>document.getElementById(id).value="");document.getElementById("badgeThreshold").value=1;document.getElementById("badgeActive").checked=true;};
+window.clearBadgeForm=function(){["badgeId","badgeName","badgeIcon","badgeDescription","badgeCondition"].forEach(id=>document.getElementById(id).value="");document.getElementById("badgeThreshold").value=1;document.getElementById("badgeActive").checked=true;};
 window.saveBadgeDefinition=async function(){
   const name=document.getElementById("badgeName").value.trim();if(!name){alert("Enter a badge name.");return;}
   const existingId=document.getElementById("badgeId").value;
   const id=existingId||name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||crypto.randomUUID();
   await setDoc(doc(db,BADGE_COLLECTION,APP_ID,"badges",id),{
     name,icon:document.getElementById("badgeIcon").value.trim()||"🎖",description:document.getElementById("badgeDescription").value.trim(),
-    triggerType:document.getElementById("badgeTrigger").value,threshold:Number(document.getElementById("badgeThreshold").value)||1,
+    triggerType:document.getElementById("badgeTrigger").value,
+    condition:document.getElementById("badgeCondition").value.trim(),
+    threshold:Number(document.getElementById("badgeThreshold").value)||1,
     active:document.getElementById("badgeActive").checked,updatedAt:serverTimestamp()
   },{merge:true});
   clearBadgeForm();await renderBadgeManager();showToast("Badge saved 🎖");
@@ -1544,12 +1817,13 @@ window.editBadgeDefinition=function(id){
   const b=badgeDefinitionsCache.find(x=>x.id===id);if(!b)return;
   document.getElementById("badgeId").value=b.id;document.getElementById("badgeName").value=b.name||"";document.getElementById("badgeIcon").value=b.icon||"";
   document.getElementById("badgeDescription").value=b.description||"";document.getElementById("badgeTrigger").value=b.triggerType||"manual";
+  document.getElementById("badgeCondition").value=b.condition||"";
   document.getElementById("badgeThreshold").value=b.threshold||1;document.getElementById("badgeActive").checked=b.active!==false;
 };
 window.deactivateBadgeDefinition=async function(id){await setDoc(doc(db,BADGE_COLLECTION,APP_ID,"badges",id),{active:false,updatedAt:serverTimestamp()},{merge:true});await renderBadgeManager();};
 async function renderBadgeManager(){
   await loadBadgeDefinitions();
-  document.getElementById("badgeDefinitionList").innerHTML=badgeDefinitionsCache.length?badgeDefinitionsCache.map(b=>`<div class="badge-definition"><strong>${b.icon||"🎖"} ${b.name}</strong> ${b.active===false?"(inactive)":""}<br><span class="small-note">${b.description||""} • ${b.triggerType} ≥ ${b.threshold||1}</span><br><button onclick="editBadgeDefinition('${b.id}')">Edit</button><button onclick="deactivateBadgeDefinition('${b.id}')">Deactivate</button></div>`).join(""):"No badge definitions yet.";
+  document.getElementById("badgeDefinitionList").innerHTML=badgeDefinitionsCache.length?badgeDefinitionsCache.map(b=>`<div class="badge-definition"><strong>${b.icon||"🎖"} ${b.name}</strong> ${b.active===false?"(inactive)":""}<br><span class="small-note">${b.description||""} • ${b.triggerType}${b.condition?` • ${b.condition}`:""} ≥ ${b.threshold||1}</span><br><button onclick="editBadgeDefinition('${b.id}')">Edit</button><button onclick="deactivateBadgeDefinition('${b.id}')">Deactivate</button></div>`).join(""):"No badge definitions yet.";
   const profiles=await getDocs(collection(db,PLAYER_COLLECTION));
   const playerSelect=document.getElementById("manualBadgePlayer");playerSelect.innerHTML="";profiles.forEach(d=>{const o=document.createElement("option");o.value=d.id;o.textContent=d.data().name||d.id;playerSelect.appendChild(o);});
   const badgeSelect=document.getElementById("manualBadgeDefinition");badgeSelect.innerHTML="";badgeDefinitionsCache.filter(b=>b.active!==false).forEach(b=>{const o=document.createElement("option");o.value=b.id;o.textContent=`${b.icon||"🎖"} ${b.name}`;badgeSelect.appendChild(o);});
@@ -1599,6 +1873,7 @@ window.openSeasonEditor = function(){
     return square;
   }).join("\n");
 
+  document.getElementById("chaosSquares").value = ACTIVE_CHAOS_SQUARES.join("\n");
   document.getElementById("seasonEditorPanel").style.display = "flex";
 };
 
@@ -1611,6 +1886,10 @@ window.closeSeasonEditor = function(){
 window.saveActiveSeason = async function(){
   const seasonName = document.getElementById("seasonName").value.trim();
   const rawSquares = document.getElementById("seasonSquares").value;
+  const chaosSquares = document.getElementById("chaosSquares").value
+    .split("\n")
+    .map(item=>item.trim())
+    .filter(Boolean);
 
   const squares = rawSquares
     .split("\n")
@@ -1645,6 +1924,7 @@ window.saveActiveSeason = async function(){
     seasonName: seasonName,
     seasonId: seasonId,
     squares: squares,
+    chaosSquares: chaosSquares,
     updatedAt: serverTimestamp()
   });
 
@@ -1652,6 +1932,7 @@ window.saveActiveSeason = async function(){
   ACTIVE_SEASON_ID = seasonId;
   ACTIVE_SEASON_NAME = seasonName;
   ACTIVE_YEAR = seasonId.slice(0,4);
+  ACTIVE_CHAOS_SQUARES = chaosSquares;
 
   localStorage.removeItem(STORAGE_BOARD);
   localStorage.removeItem(STORAGE_MARKED);
@@ -1707,6 +1988,8 @@ async function startApp(){
   getPlayerName();
   buildBoard();
   await seedStarterBadges();
+  await recordActivity();
+  await processReferral();
   listenMonthlyLeaderboard();
   listenYearlyLeaderboard();
   listenHallOfFame();
