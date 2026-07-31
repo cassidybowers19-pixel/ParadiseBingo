@@ -427,6 +427,32 @@ button{
 .admin-panel textarea{
   min-height:220px;
 }
+
+
+/* ==============================
+   LEADERBOARDS / PROFILES / BADGES
+============================== */
+.leaderboard-tabs{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  margin:12px 0;
+}
+.leaderboard-tabs button{margin:0;padding:10px 6px;font-size:13px;}
+.leaderboard-view{background:white;border:2px solid #d9e5e7;border-radius:14px;padding:12px;margin-top:10px;}
+.leaderboard-view h3{color:#008c9e;margin:4px 0 10px;}
+.badge-chip{display:inline-flex;align-items:center;gap:4px;background:#f7f3e9;border:1px solid #d9e5e7;border-radius:999px;padding:5px 9px;margin:3px;font-size:12px;}
+.modal-panel{position:fixed;inset:0;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;padding:15px;z-index:99996;}
+.modal-card{background:white;color:#18323a;width:min(720px,95vw);max-height:88vh;overflow:auto;border-radius:20px;padding:18px;box-shadow:0 10px 35px rgba(0,0,0,.35);text-align:left;}
+.modal-card h2,.modal-card h3{color:#008c9e;text-align:center;}
+.modal-card label{display:block;font-weight:bold;margin-top:10px;}
+.modal-card input,.modal-card select,.modal-card textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #ccc;border-radius:10px;font:inherit;}
+.modal-actions{text-align:center;margin-top:14px;}
+.badge-definition{background:#f7f3e9;border-radius:12px;padding:10px;margin:9px 0;}
+.profile-stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.profile-stat{background:#f7f3e9;border-radius:12px;padding:10px;text-align:center;}
+.small-note{font-size:12px;color:#666;}
+
 </style>
 </head>
 
@@ -480,19 +506,16 @@ button{
 <div id="board"></div>
 
 <div class="leaderboard">
-  <h2>🏆 Live Leaderboard</h2>
-  <div id="leaderboardList">Loading...</div>
-</div>
-
+  <h2>🏆 Paradise Leaderboards</h2>
   <div class="leaderboard-tabs">
-  <button onclick="showLeaderboard('month')">🌴 Month</button>
-  <button onclick="showLeaderboard('year')">🏆 Year</button>
-  <button onclick="showLeaderboard('hall')">👑 Hall of Fame</button>
+    <button id="monthLeaderboardTab" onclick="showLeaderboard('month')">🌴 Month</button>
+    <button id="yearLeaderboardTab" onclick="showLeaderboard('year')">🏆 Year</button>
+    <button id="hallLeaderboardTab" onclick="showLeaderboard('hall')">👑 Hall of Fame</button>
+  </div>
+  <div id="monthlyLeaderboard" class="leaderboard-view">Loading monthly leaderboard...</div>
+  <div id="yearlyLeaderboard" class="leaderboard-view" style="display:none;">Loading yearly leaderboard...</div>
+  <div id="hallOfFame" class="leaderboard-view" style="display:none;">Loading Hall of Fame...</div>
 </div>
-
-<div id="monthlyLeaderboard"></div>
-<div id="yearlyLeaderboard" style="display:none;"></div>
-<div id="hallOfFame" style="display:none;"></div>
 
 <div id="memoriesPanel" class="memories-panel" style="display:none;">
   <div class="memories-content">
@@ -527,7 +550,7 @@ button{
 <div id="toast"></div>
 
 <div class="version" id="versionLabel">
-  Paradise Bingo v2.3.0 • Memories Edition
+  Paradise Bingo v3.0.0 • Achievements Edition
 </div>
 <div id="adminPanel" class="admin-panel" style="display:none;">
 
@@ -542,10 +565,12 @@ button{
   </button>
  
   <button onclick="finalizeMonth()">
-  🏁 Finalize Month
-</button>
+    🏁 Finalize Month
+  </button>
 
   <button onclick="openBadgeManager()">🎖 Manage Badges</button>
+
+  <button onclick="resetYearlyLeaderboard()">⚠️ Reset Yearly Leaderboard</button>
 
   <button onclick="generateBoard()">
     🎲 Generate New Board
@@ -576,6 +601,61 @@ button{
   <button onclick="closeSeasonEditor()">❌ Close Editor</button>
 </div>
 
+
+
+<div id="profilePanel" class="modal-panel" style="display:none;">
+  <div class="modal-card">
+    <h2>🎖 My Paradise Profile</h2>
+    <div id="profileContent">Loading profile...</div>
+    <div class="modal-actions"><button onclick="closeProfile()">Close</button></div>
+  </div>
+</div>
+
+<div id="badgeManagerPanel" class="modal-panel" style="display:none;">
+  <div class="modal-card">
+    <h2>🎖 Badge Manager</h2>
+    <p class="small-note">Automatic badges are checked after score or photo updates. Month-end badges are awarded when you finalize the month. Manual badges can be awarded below.</p>
+
+    <input id="badgeId" type="hidden">
+    <label>Badge name</label>
+    <input id="badgeName" placeholder="Photo Master">
+    <label>Emoji</label>
+    <input id="badgeIcon" placeholder="📸">
+    <label>Description</label>
+    <input id="badgeDescription" placeholder="Submit 10 photo proofs.">
+    <label>Trigger</label>
+    <select id="badgeTrigger">
+      <option value="photos">Total photos</option>
+      <option value="bingos">Total bingos</option>
+      <option value="blackouts">Total blackouts</option>
+      <option value="score">Yearly score</option>
+      <option value="monthly_winner">Monthly winner</option>
+      <option value="most_photos">Most photos in month</option>
+      <option value="most_bingos">Most bingos in month</option>
+      <option value="manual">Manual award</option>
+    </select>
+    <label>Threshold</label>
+    <input id="badgeThreshold" type="number" min="1" value="1">
+    <label><input id="badgeActive" type="checkbox" checked style="width:auto;"> Active</label>
+    <div class="modal-actions">
+      <button onclick="saveBadgeDefinition()">💾 Save Badge</button>
+      <button onclick="clearBadgeForm()">Clear Form</button>
+    </div>
+
+    <h3>Existing Badges</h3>
+    <div id="badgeDefinitionList">Loading...</div>
+
+    <h3>Manual Award</h3>
+    <label>Player</label>
+    <select id="manualBadgePlayer"></select>
+    <label>Badge</label>
+    <select id="manualBadgeDefinition"></select>
+    <div class="modal-actions"><button onclick="awardManualBadge()">🎁 Award Badge</button></div>
+
+    <div class="modal-actions"><button onclick="closeBadgeManager()">Close</button></div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
 import {
@@ -588,7 +668,9 @@ import {
   addDoc,
   deleteDoc,
   onSnapshot,
-  serverTimestamp
+  serverTimestamp,
+  runTransaction,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 import {
@@ -648,6 +730,17 @@ let WORD_BANK = [...BACKUP_WORD_BANK];
 
 const APP_ID = "paradise";
 const ACTIVE_SEASON_DOC = doc(db, "appSettings", APP_ID);
+const BADGE_COLLECTION = "badgeDefinitions";
+const PLAYER_COLLECTION = "players";
+const MONTHLY_COLLECTION = "monthlyLeaderboards";
+const YEARLY_COLLECTION = "yearlyLeaderboards";
+const HALL_COLLECTION = "hallOfFame";
+
+let ACTIVE_SEASON_ID = new Date().toISOString().slice(0,7);
+let ACTIVE_SEASON_NAME = new Date().toLocaleString("default", {month:"long",year:"numeric"});
+let ACTIVE_YEAR = new Date().getFullYear().toString();
+let badgeDefinitionsCache = [];
+
 const STORAGE_BOARD = "paradise_board";
 const STORAGE_MARKED = "paradise_marked";
 const STORAGE_LINES = "paradise_lines";
@@ -655,6 +748,7 @@ const STORAGE_PLAYER = "paradise_player";
 const STORAGE_ID = "paradise_player_id";
 const STORAGE_BLACKOUT = "paradise_blackout";
 const STORAGE_PHOTOS = "paradise_photos";
+const STORAGE_SEASON = "paradise_active_season";
 
 let pendingPhotoSquare = null;
 let pendingPhotoIndex = null;
@@ -720,49 +814,54 @@ function requiresPhoto(item){
 }
 
 function getCurrentSeasonId(){
-  return new Date().toISOString().slice(0,7);
+  return ACTIVE_SEASON_ID;
 }
 
 function getCurrentSeasonName(){
-  return new Date().toLocaleString("default", {
-    month: "long",
-    year: "numeric"
-  });
+  return ACTIVE_SEASON_NAME;
+}
+
+function parseSeasonNameToId(seasonName){
+  const parsed = new Date(`1 ${seasonName}`);
+  if(Number.isNaN(parsed.getTime())) return null;
+  return `${parsed.getFullYear()}-${String(parsed.getMonth()+1).padStart(2,"0")}`;
 }
 
 function getBoard(){
   let saved = localStorage.getItem(STORAGE_BOARD);
-
-  if(saved){
-    return JSON.parse(saved);
-  }
-
+  if(saved) return JSON.parse(saved);
   let board = shuffle([...WORD_BANK]).slice(0,24);
   localStorage.setItem(STORAGE_BOARD,JSON.stringify(board));
-
   return board;
 }
+
+function clearLocalSeasonProgress(){
+  [STORAGE_BOARD,STORAGE_MARKED,STORAGE_LINES,STORAGE_BLACKOUT,STORAGE_PHOTOS].forEach(key=>localStorage.removeItem(key));
+}
+
 async function loadActiveSeason(){
   try{
     const seasonSnap = await getDoc(ACTIVE_SEASON_DOC);
-
     if(seasonSnap.exists()){
       const data = seasonSnap.data();
-
-      if(data.squares && data.squares.length >= 24){
-        WORD_BANK = data.squares;
-        return;
-      }
+      if(data.squares && data.squares.length >= 24) WORD_BANK = data.squares;
+      ACTIVE_SEASON_ID = data.seasonId || ACTIVE_SEASON_ID;
+      ACTIVE_SEASON_NAME = data.seasonName || ACTIVE_SEASON_NAME;
+      ACTIVE_YEAR = String((ACTIVE_SEASON_ID || "").slice(0,4) || new Date().getFullYear());
+    }else{
+      WORD_BANK = [...BACKUP_WORD_BANK];
     }
-
-    WORD_BANK = [...BACKUP_WORD_BANK];
-
   }catch(error){
     console.error("Season load failed:", error);
     WORD_BANK = [...BACKUP_WORD_BANK];
     showToast("Using backup board 🌴");
   }
+
+  const savedSeason = localStorage.getItem(STORAGE_SEASON);
+  if(savedSeason && savedSeason !== ACTIVE_SEASON_ID) clearLocalSeasonProgress();
+  localStorage.setItem(STORAGE_SEASON,ACTIVE_SEASON_ID);
 }
+
 function buildBoard(){
   const boardDiv = document.getElementById("board");
   boardDiv.innerHTML = "";
@@ -916,27 +1015,62 @@ function updateStats(){
   document.getElementById("bingoCount").innerText = claimedLines.length;
 }
 
-async function updateFirebaseScore(points){
+async function updatePlayerStats({scorePoints=0,bingos=0,blackouts=0,photos=0,squareText=null}={}){
   const playerId = getPlayerId();
   const playerName = getPlayerName();
-  const playerRef = doc(db,"leaderboard",playerId);
-  const snap = await getDoc(playerRef);
+  const monthlyRef = doc(db,MONTHLY_COLLECTION,ACTIVE_SEASON_ID,"players",playerId);
+  const yearlyRef = doc(db,YEARLY_COLLECTION,ACTIVE_YEAR,"players",playerId);
+  const profileRef = doc(db,PLAYER_COLLECTION,playerId);
 
-  let currentScore = 0;
+  await runTransaction(db, async transaction => {
+    const [monthSnap,yearSnap,profileSnap] = await Promise.all([
+      transaction.get(monthlyRef),transaction.get(yearlyRef),transaction.get(profileRef)
+    ]);
+    const month = monthSnap.exists()?monthSnap.data():{};
+    const year = yearSnap.exists()?yearSnap.data():{};
+    const profile = profileSnap.exists()?profileSnap.data():{};
+    const squareHits = {...(month.squareHits||{})};
+    if(squareText) squareHits[squareText]=(squareHits[squareText]||0)+1;
 
-  if(snap.exists()){
-    currentScore = snap.data().score || 0;
-  }
+    transaction.set(monthlyRef,{
+      name:playerName,
+      score:(month.score||0)+scorePoints,
+      bingos:(month.bingos||0)+bingos,
+      blackouts:(month.blackouts||0)+blackouts,
+      photos:(month.photos||0)+photos,
+      squareHits,
+      seasonId:ACTIVE_SEASON_ID,
+      seasonName:ACTIVE_SEASON_NAME,
+      updatedAt:serverTimestamp()
+    },{merge:true});
 
-  let newScore = currentScore + points;
+    transaction.set(yearlyRef,{
+      name:playerName,
+      score:(year.score||0)+scorePoints,
+      bingos:(year.bingos||0)+bingos,
+      blackouts:(year.blackouts||0)+blackouts,
+      photos:(year.photos||0)+photos,
+      year:ACTIVE_YEAR,
+      updatedAt:serverTimestamp()
+    },{merge:true});
 
-  await setDoc(playerRef,{
-    name: playerName,
-    score: newScore,
-    updatedAt: serverTimestamp()
+    const seasonsPlayed = Array.from(new Set([...(profile.seasonsPlayed||[]),ACTIVE_SEASON_ID]));
+    transaction.set(profileRef,{
+      name:playerName,
+      totalScore:(profile.totalScore||0)+scorePoints,
+      totalBingos:(profile.totalBingos||0)+bingos,
+      totalBlackouts:(profile.totalBlackouts||0)+blackouts,
+      totalPhotos:(profile.totalPhotos||0)+photos,
+      monthlyWins:profile.monthlyWins||0,
+      badges:profile.badges||[],
+      seasonsPlayed,
+      updatedAt:serverTimestamp()
+    },{merge:true});
   });
 
-  document.getElementById("scoreDisplay").innerText = newScore;
+  const currentMonthly = await getDoc(monthlyRef);
+  document.getElementById("scoreDisplay").innerText = currentMonthly.data()?.score || 0;
+  await checkAutomaticBadges(playerId);
 }
 
 function checkBingo(){
@@ -951,7 +1085,7 @@ function checkBingo(){
 
       showToast("PARADISE BINGO! +1 🌴🍹");
       launchConfetti();
-      updateFirebaseScore(1);
+      updatePlayerStats({scorePoints:1,bingos:1});
     }
   });
 
@@ -961,7 +1095,7 @@ function checkBingo(){
     showToast("PARADISE BLACKOUT! +5 🏆");
     showBlackoutCelebration();
     launchConfetti();
-    updateFirebaseScore(5);
+    updatePlayerStats({scorePoints:5,blackouts:1});
   }
 
   updateStats();
@@ -1019,6 +1153,7 @@ async function uploadPhotoToSharedGallery(squareText, photoDataUrl){
       createdAt: serverTimestamp()
     });
 
+    await updatePlayerStats({photos:1,squareText:squareText});
     showToast("Photo added to community gallery 📸");
 
   }catch(error){
@@ -1110,45 +1245,59 @@ function renderPhotoStats(photos){
   `).join("");
 }
 
-function listenLeaderboard(){
-  const leaderboardRef = collection(db,"leaderboard");
-
-  onSnapshot(leaderboardRef,(snapshot)=>{
-    let players = [];
-
-    snapshot.forEach(doc=>{
-      players.push(doc.data());
-    });
-
-    players.sort((a,b)=>(b.score || 0)-(a.score || 0));
-
-    const list = document.getElementById("leaderboardList");
-    list.innerHTML = "";
-
-    if(players.length === 0){
-      list.innerHTML = "No scores yet.";
-      return;
-    }
-
-    players.forEach((player,index)=>{
-      const row = document.createElement("div");
-      row.classList.add("leaderboard-row");
-
-      row.innerHTML = `
-        <span>${getLeaderboardBadge(index,player.score)} ${index+1}. ${player.name}</span>
-        <strong>${player.score || 0}</strong>
-      `;
-
-      list.appendChild(row);
-    });
+function renderLeaderboardPlayers(container,players,title){
+  container.innerHTML = `<h3>${title}</h3>`;
+  if(players.length===0){container.innerHTML += "No scores yet.";return;}
+  players.sort((a,b)=>(b.score||0)-(a.score||0));
+  players.forEach((player,index)=>{
+    const row=document.createElement("div");
+    row.className="leaderboard-row";
+    const badgeIcons=(player.badges||[]).slice(-2).map(b=>b.icon).join(" ");
+    row.innerHTML=`<span>${getLeaderboardBadge(index,player.score)} ${index+1}. ${player.name||"Anonymous"} ${badgeIcons}</span><strong>${player.score||0}</strong>`;
+    container.appendChild(row);
   });
 }
 
+function listenMonthlyLeaderboard(){
+  const ref=collection(db,MONTHLY_COLLECTION,ACTIVE_SEASON_ID,"players");
+  onSnapshot(ref,snapshot=>{
+    const players=[];snapshot.forEach(d=>players.push({...d.data(),id:d.id}));
+    renderLeaderboardPlayers(document.getElementById("monthlyLeaderboard"),players,ACTIVE_SEASON_NAME);
+    const me=players.find(p=>p.id===getPlayerId());
+    if(me) document.getElementById("scoreDisplay").innerText=me.score||0;
+  },error=>{console.error(error);document.getElementById("monthlyLeaderboard").innerText="Monthly leaderboard unavailable.";});
+}
+
+function listenYearlyLeaderboard(){
+  const ref=collection(db,YEARLY_COLLECTION,ACTIVE_YEAR,"players");
+  onSnapshot(ref,snapshot=>{
+    const players=[];snapshot.forEach(d=>players.push({...d.data(),id:d.id}));
+    renderLeaderboardPlayers(document.getElementById("yearlyLeaderboard"),players,`${ACTIVE_YEAR} Championship`);
+  },error=>{console.error(error);document.getElementById("yearlyLeaderboard").innerText="Yearly leaderboard unavailable.";});
+}
+
+function listenHallOfFame(){
+  onSnapshot(collection(db,HALL_COLLECTION),snapshot=>{
+    const records=[];snapshot.forEach(d=>{const x=d.data();if(x.app===APP_ID) records.push(x);});
+    records.sort((a,b)=>(b.seasonId||"").localeCompare(a.seasonId||""));
+    const el=document.getElementById("hallOfFame");
+    el.innerHTML="<h3>👑 Hall of Fame</h3>";
+    if(!records.length){el.innerHTML+="No finalized champions yet.";return;}
+    el.innerHTML+=records.map(r=>`<div class="stat-row"><span><strong>${r.seasonName}</strong><br>${r.winnerName||"No winner"}</span><strong>${r.winnerScore||0} pts</strong></div>`).join("");
+  });
+}
+
+window.showLeaderboard=function(type){
+  document.getElementById("monthlyLeaderboard").style.display=type==="month"?"block":"none";
+  document.getElementById("yearlyLeaderboard").style.display=type==="year"?"block":"none";
+  document.getElementById("hallOfFame").style.display=type==="hall"?"block":"none";
+};
+
 function getLeaderboardBadge(index,score){
-  if(index === 0) return "👑";
-  if(score >= 10) return "🔥";
-  if(score >= 5) return "🏆";
-  if(score >= 1) return "🍹";
+  if(index===0)return "👑";
+  if(score>=10)return "🔥";
+  if(score>=5)return "🏆";
+  if(score>=1)return "🍹";
   return "🌴";
 }
 
@@ -1180,6 +1329,7 @@ window.generateBoard = function(){
   localStorage.removeItem(STORAGE_LINES);
   localStorage.removeItem(STORAGE_BLACKOUT);
   localStorage.removeItem(STORAGE_PHOTOS);
+  localStorage.setItem(STORAGE_SEASON,ACTIVE_SEASON_ID);
 
   buildBoard();
   showToast("New board generated 🌴");
@@ -1280,33 +1430,162 @@ window.printMyPhotos = function(){
 window.openPhotoAlbum = window.openMemories;
 
 window.adminReset = async function(){
-  const confirmReset = confirm("This clears the live leaderboard for everyone. Continue?");
+  if(!confirm(`Clear only the ${ACTIVE_SEASON_NAME} monthly leaderboard? Yearly totals and badges will remain.`)) return;
+  await deleteCollectionDocuments(collection(db,MONTHLY_COLLECTION,ACTIVE_SEASON_ID,"players"));
+  showToast("Monthly leaderboard cleared 🌴");
+};
 
-  if(!confirmReset){
-    return;
+async function deleteCollectionDocuments(collectionRef){
+  const snapshot=await getDocs(collectionRef);
+  if(snapshot.empty)return;
+  const batch=writeBatch(db);
+  snapshot.forEach(item=>batch.delete(item.ref));
+  await batch.commit();
+}
+
+window.resetYearlyLeaderboard=async function(){
+  const typed=prompt(`Type RESET ${ACTIVE_YEAR} to permanently clear the yearly leaderboard:`);
+  if(typed!==`RESET ${ACTIVE_YEAR}`){showToast("Yearly reset cancelled");return;}
+  await deleteCollectionDocuments(collection(db,YEARLY_COLLECTION,ACTIVE_YEAR,"players"));
+  showToast(`${ACTIVE_YEAR} leaderboard cleared`);
+};
+
+async function loadBadgeDefinitions(){
+  const snapshot=await getDocs(collection(db,BADGE_COLLECTION,APP_ID,"badges"));
+  badgeDefinitionsCache=[];snapshot.forEach(d=>badgeDefinitionsCache.push({...d.data(),id:d.id}));
+  return badgeDefinitionsCache;
+}
+
+async function seedStarterBadges(){
+  await loadBadgeDefinitions();
+  if(badgeDefinitionsCache.length) return;
+  const starters=[
+    {id:"first-snapshot",name:"First Snapshot",icon:"📸",description:"Submit your first photo proof.",triggerType:"photos",threshold:1,active:true},
+    {id:"memory-maker",name:"Memory Maker",icon:"🎞️",description:"Submit 10 photo proofs over time.",triggerType:"photos",threshold:10,active:true},
+    {id:"bingo-starter",name:"Bingo Starter",icon:"🍹",description:"Complete your first Paradise Bingo.",triggerType:"bingos",threshold:1,active:true},
+    {id:"blackout-boss",name:"Blackout Boss",icon:"⚫",description:"Complete a full-board blackout.",triggerType:"blackouts",threshold:1,active:true},
+    {id:"paradise-champion",name:"Paradise Champion",icon:"👑",description:"Win a monthly Paradise leaderboard.",triggerType:"monthly_winner",threshold:1,active:true},
+    {id:"paradise-paparazzi",name:"Paradise Paparazzi",icon:"📷",description:"Submit the most photos in a finalized month.",triggerType:"most_photos",threshold:1,active:true},
+    {id:"bingo-beast",name:"Bingo Beast",icon:"🔥",description:"Complete the most bingos in a finalized month.",triggerType:"most_bingos",threshold:1,active:true}
+  ];
+  const batch=writeBatch(db);
+  starters.forEach(b=>batch.set(doc(db,BADGE_COLLECTION,APP_ID,"badges",b.id),{...b,updatedAt:serverTimestamp()}));
+  await batch.commit();
+  await loadBadgeDefinitions();
+}
+
+async function awardBadge(playerId,badge,seasonId=ACTIVE_SEASON_ID){
+  const profileRef=doc(db,PLAYER_COLLECTION,playerId);
+  const snap=await getDoc(profileRef);
+  const profile=snap.exists()?snap.data():{};
+  const badges=profile.badges||[];
+  if(badges.some(b=>b.id===badge.id))return false;
+  badges.push({id:badge.id,name:badge.name,icon:badge.icon||"🎖",description:badge.description||"",earnedAt:new Date().toISOString(),seasonId});
+  await setDoc(profileRef,{badges},{merge:true});
+  if(playerId===getPlayerId())showToast(`Achievement unlocked: ${badge.icon||"🎖"} ${badge.name}`);
+  return true;
+}
+
+async function checkAutomaticBadges(playerId){
+  if(!badgeDefinitionsCache.length)await loadBadgeDefinitions();
+  const profileSnap=await getDoc(doc(db,PLAYER_COLLECTION,playerId));
+  const yearSnap=await getDoc(doc(db,YEARLY_COLLECTION,ACTIVE_YEAR,"players",playerId));
+  const profile=profileSnap.exists()?profileSnap.data():{};
+  const year=yearSnap.exists()?yearSnap.data():{};
+  for(const badge of badgeDefinitionsCache.filter(b=>b.active!==false&&["photos","bingos","blackouts","score"].includes(b.triggerType))){
+    const values={photos:profile.totalPhotos||0,bingos:profile.totalBingos||0,blackouts:profile.totalBlackouts||0,score:year.score||0};
+    if(values[badge.triggerType]>=(badge.threshold||1))await awardBadge(playerId,badge);
   }
+}
 
-  const snapshot = await getDocs(collection(db,"leaderboard"));
+window.openProfile=async function(){
+  document.getElementById("profilePanel").style.display="flex";
+  const playerId=getPlayerId();
+  const [profileSnap,monthSnap,yearSnap]=await Promise.all([
+    getDoc(doc(db,PLAYER_COLLECTION,playerId)),
+    getDoc(doc(db,MONTHLY_COLLECTION,ACTIVE_SEASON_ID,"players",playerId)),
+    getDoc(doc(db,YEARLY_COLLECTION,ACTIVE_YEAR,"players",playerId))
+  ]);
+  const p=profileSnap.exists()?profileSnap.data():{};const m=monthSnap.exists()?monthSnap.data():{};const y=yearSnap.exists()?yearSnap.data():{};
+  const badges=p.badges||[];
+  document.getElementById("profileContent").innerHTML=`
+    <h3>${p.name||getPlayerName()}</h3>
+    <div class="profile-stat-grid">
+      <div class="profile-stat"><strong>${m.score||0}</strong><br>Monthly score</div>
+      <div class="profile-stat"><strong>${y.score||0}</strong><br>${ACTIVE_YEAR} score</div>
+      <div class="profile-stat"><strong>${p.totalPhotos||0}</strong><br>Total photos</div>
+      <div class="profile-stat"><strong>${p.totalBingos||0}</strong><br>Total bingos</div>
+      <div class="profile-stat"><strong>${p.totalBlackouts||0}</strong><br>Blackouts</div>
+      <div class="profile-stat"><strong>${p.monthlyWins||0}</strong><br>Monthly wins</div>
+    </div>
+    <h3>Badges</h3>
+    <div>${badges.length?badges.map(b=>`<span class="badge-chip" title="${b.description||""}">${b.icon||"🎖"} ${b.name}</span>`).join(""):"No badges earned yet."}</div>`;
+};
+window.closeProfile=function(){document.getElementById("profilePanel").style.display="none";};
 
-  const deletePromises = [];
+window.openBadgeManager=async function(){
+  document.getElementById("badgeManagerPanel").style.display="flex";
+  await renderBadgeManager();
+};
+window.closeBadgeManager=function(){document.getElementById("badgeManagerPanel").style.display="none";};
+window.clearBadgeForm=function(){["badgeId","badgeName","badgeIcon","badgeDescription"].forEach(id=>document.getElementById(id).value="");document.getElementById("badgeThreshold").value=1;document.getElementById("badgeActive").checked=true;};
+window.saveBadgeDefinition=async function(){
+  const name=document.getElementById("badgeName").value.trim();if(!name){alert("Enter a badge name.");return;}
+  const existingId=document.getElementById("badgeId").value;
+  const id=existingId||name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||crypto.randomUUID();
+  await setDoc(doc(db,BADGE_COLLECTION,APP_ID,"badges",id),{
+    name,icon:document.getElementById("badgeIcon").value.trim()||"🎖",description:document.getElementById("badgeDescription").value.trim(),
+    triggerType:document.getElementById("badgeTrigger").value,threshold:Number(document.getElementById("badgeThreshold").value)||1,
+    active:document.getElementById("badgeActive").checked,updatedAt:serverTimestamp()
+  },{merge:true});
+  clearBadgeForm();await renderBadgeManager();showToast("Badge saved 🎖");
+};
+window.editBadgeDefinition=function(id){
+  const b=badgeDefinitionsCache.find(x=>x.id===id);if(!b)return;
+  document.getElementById("badgeId").value=b.id;document.getElementById("badgeName").value=b.name||"";document.getElementById("badgeIcon").value=b.icon||"";
+  document.getElementById("badgeDescription").value=b.description||"";document.getElementById("badgeTrigger").value=b.triggerType||"manual";
+  document.getElementById("badgeThreshold").value=b.threshold||1;document.getElementById("badgeActive").checked=b.active!==false;
+};
+window.deactivateBadgeDefinition=async function(id){await setDoc(doc(db,BADGE_COLLECTION,APP_ID,"badges",id),{active:false,updatedAt:serverTimestamp()},{merge:true});await renderBadgeManager();};
+async function renderBadgeManager(){
+  await loadBadgeDefinitions();
+  document.getElementById("badgeDefinitionList").innerHTML=badgeDefinitionsCache.length?badgeDefinitionsCache.map(b=>`<div class="badge-definition"><strong>${b.icon||"🎖"} ${b.name}</strong> ${b.active===false?"(inactive)":""}<br><span class="small-note">${b.description||""} • ${b.triggerType} ≥ ${b.threshold||1}</span><br><button onclick="editBadgeDefinition('${b.id}')">Edit</button><button onclick="deactivateBadgeDefinition('${b.id}')">Deactivate</button></div>`).join(""):"No badge definitions yet.";
+  const profiles=await getDocs(collection(db,PLAYER_COLLECTION));
+  const playerSelect=document.getElementById("manualBadgePlayer");playerSelect.innerHTML="";profiles.forEach(d=>{const o=document.createElement("option");o.value=d.id;o.textContent=d.data().name||d.id;playerSelect.appendChild(o);});
+  const badgeSelect=document.getElementById("manualBadgeDefinition");badgeSelect.innerHTML="";badgeDefinitionsCache.filter(b=>b.active!==false).forEach(b=>{const o=document.createElement("option");o.value=b.id;o.textContent=`${b.icon||"🎖"} ${b.name}`;badgeSelect.appendChild(o);});
+}
+window.awardManualBadge=async function(){const playerId=document.getElementById("manualBadgePlayer").value;const badge=badgeDefinitionsCache.find(b=>b.id===document.getElementById("manualBadgeDefinition").value);if(playerId&&badge){await awardBadge(playerId,badge);showToast("Badge awarded 🎁");}};
 
-  snapshot.forEach((playerDoc)=>{
-    deletePromises.push(deleteDoc(doc(db,"leaderboard",playerDoc.id)));
+window.finalizeMonth=async function(){
+  if(!confirm(`Finalize ${ACTIVE_SEASON_NAME}? This archives winners and clears only the monthly leaderboard.`))return;
+  const monthRef=collection(db,MONTHLY_COLLECTION,ACTIVE_SEASON_ID,"players");
+  const snapshot=await getDocs(monthRef);const players=[];snapshot.forEach(d=>players.push({...d.data(),id:d.id}));
+  if(!players.length){alert("There are no monthly scores to finalize.");return;}
+  players.sort((a,b)=>(b.score||0)-(a.score||0));const winner=players[0];
+  const photoWinner=[...players].sort((a,b)=>(b.photos||0)-(a.photos||0))[0];
+  const bingoWinner=[...players].sort((a,b)=>(b.bingos||0)-(a.bingos||0))[0];
+  const hotCounts={};players.forEach(p=>Object.entries(p.squareHits||{}).forEach(([k,v])=>hotCounts[k]=(hotCounts[k]||0)+v));
+  const hotSquares=Object.entries(hotCounts).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([square,count])=>({square,count}));
+  await setDoc(doc(db,HALL_COLLECTION,`${APP_ID}-${ACTIVE_SEASON_ID}`),{
+    app:APP_ID,seasonId:ACTIVE_SEASON_ID,seasonName:ACTIVE_SEASON_NAME,winnerId:winner.id,winnerName:winner.name,winnerScore:winner.score||0,
+    photoWinnerId:photoWinner.id,photoWinnerName:photoWinner.name,photoCount:photoWinner.photos||0,bingoWinnerId:bingoWinner.id,bingoWinnerName:bingoWinner.name,bingoCount:bingoWinner.bingos||0,hotSquares,finalizedAt:serverTimestamp()
   });
-
-  await Promise.all(deletePromises);
-
-  showToast("Leaderboard cleared 🌴");
+  const profileRef=doc(db,PLAYER_COLLECTION,winner.id);const profileSnap=await getDoc(profileRef);await setDoc(profileRef,{monthlyWins:(profileSnap.data()?.monthlyWins||0)+1},{merge:true});
+  if(!badgeDefinitionsCache.length)await loadBadgeDefinitions();
+  for(const b of badgeDefinitionsCache.filter(x=>x.active!==false)){
+    if(b.triggerType==="monthly_winner")await awardBadge(winner.id,b);
+    if(b.triggerType==="most_photos")await awardBadge(photoWinner.id,b);
+    if(b.triggerType==="most_bingos")await awardBadge(bingoWinner.id,b);
+  }
+  await deleteCollectionDocuments(monthRef);
+  showToast(`${ACTIVE_SEASON_NAME} finalized 👑`);
 };
 
 window.openSeasonEditor = function(){
   const seasonInput = document.getElementById("seasonName");
   const squaresInput = document.getElementById("seasonSquares");
 
-  seasonInput.value = new Date().toLocaleString("default", {
-    month: "long",
-    year: "numeric"
-  });
+  seasonInput.value = ACTIVE_SEASON_NAME;
 
   squaresInput.value = WORD_BANK.map(square => {
     if(typeof square === "object" && square.photo){
@@ -1325,6 +1604,8 @@ window.openSeasonEditor = function(){
 
 window.closeSeasonEditor = function(){
   document.getElementById("seasonEditorPanel").style.display = "none";
+  document.getElementById("badgeManagerPanel").style.display = "none";
+  document.getElementById("profilePanel").style.display = "none";
 };
 
 window.saveActiveSeason = async function(){
@@ -1356,15 +1637,21 @@ window.saveActiveSeason = async function(){
     return;
   }
 
+  const seasonId = parseSeasonNameToId(seasonName);
+  if(!seasonId){alert("Use a season name like August 2026.");return;}
+
   await setDoc(ACTIVE_SEASON_DOC, {
     app: APP_ID,
     seasonName: seasonName,
-    seasonId: new Date().toISOString().slice(0,7),
+    seasonId: seasonId,
     squares: squares,
     updatedAt: serverTimestamp()
   });
 
   WORD_BANK = squares;
+  ACTIVE_SEASON_ID = seasonId;
+  ACTIVE_SEASON_NAME = seasonName;
+  ACTIVE_YEAR = seasonId.slice(0,4);
 
   localStorage.removeItem(STORAGE_BOARD);
   localStorage.removeItem(STORAGE_MARKED);
@@ -1419,7 +1706,10 @@ async function startApp(){
 
   getPlayerName();
   buildBoard();
-  listenLeaderboard();
+  await seedStarterBadges();
+  listenMonthlyLeaderboard();
+  listenYearlyLeaderboard();
+  listenHallOfFame();
   loadCommunityGallery();
 }
 
