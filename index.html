@@ -569,10 +569,6 @@ button{
   </button>
 
   <button onclick="openBadgeManager()">🎖 Manage Badges</button>
-
-  <button onclick="migrateJulyLeaderboard()">
-  ♻️ Restore July Leaderboard
-</button>
   
   <button onclick="resetYearlyLeaderboard()">⚠️ Reset Yearly Leaderboard</button>
 
@@ -1446,89 +1442,6 @@ async function deleteCollectionDocuments(collectionRef){
   snapshot.forEach(item=>batch.delete(item.ref));
   await batch.commit();
 }
-
-window.migrateJulyLeaderboard = async function(){
-  const confirmMigration = confirm(
-    "Copy the old leaderboard into July 2026 and the 2026 yearly leaderboard?"
-  );
-
-  if(!confirmMigration){
-    return;
-  }
-
-  try{
-    const oldSnapshot = await getDocs(collection(db, "leaderboard"));
-
-    if(oldSnapshot.empty){
-      showToast("No old leaderboard records found");
-      return;
-    }
-
-    const migrationPromises = [];
-
-    oldSnapshot.forEach(playerDoc => {
-      const player = playerDoc.data();
-      const playerId = playerDoc.id;
-
-      const monthlyRef = doc(
-        db,
-        "monthlyLeaderboards",
-        "2026-07",
-        "players",
-        playerId
-      );
-
-      const yearlyRef = doc(
-        db,
-        "yearlyLeaderboards",
-        "2026",
-        "players",
-        playerId
-      );
-
-      const playerProfileRef = doc(
-        db,
-        "players",
-        playerId
-      );
-
-      const migratedData = {
-        name: player.name || "Anonymous Paradise Player",
-        score: player.score || 0,
-        bingos: player.bingos || 0,
-        blackouts: player.blackouts || 0,
-        photos: player.photos || 0,
-        migratedFromLegacyLeaderboard: true,
-        updatedAt: serverTimestamp()
-      };
-
-      migrationPromises.push(
-        setDoc(monthlyRef, migratedData, { merge:true }),
-        setDoc(yearlyRef, migratedData, { merge:true }),
-        setDoc(
-          playerProfileRef,
-          {
-            name: migratedData.name,
-            totalScore: migratedData.score,
-            totalBingos: migratedData.bingos,
-            totalBlackouts: migratedData.blackouts,
-            totalPhotos: migratedData.photos,
-            updatedAt: serverTimestamp()
-          },
-          { merge:true }
-        )
-      );
-    });
-
-    await Promise.all(migrationPromises);
-
-    showToast("July leaderboard restored 🌴");
-
-  }catch(error){
-    console.error("July migration failed:", error);
-    showToast("July restore failed");
-  }
-};
 
 window.resetYearlyLeaderboard=async function(){
   const typed=prompt(`Type RESET ${ACTIVE_YEAR} to permanently clear the yearly leaderboard:`);
