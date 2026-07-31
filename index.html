@@ -468,6 +468,7 @@ button{
 <button onclick="resetBoard()">↺ Reset My Board</button>
 <button onclick="shareBoard()">📤 Share</button>
 <button onclick="openMemories()">📸 Memories</button>
+<button onclick="openProfile()">🎖 My Badges</button>
 
 <div class="stats">
   Player: <span id="playerNameDisplay"></span><br>
@@ -482,6 +483,16 @@ button{
   <h2>🏆 Live Leaderboard</h2>
   <div id="leaderboardList">Loading...</div>
 </div>
+
+  <div class="leaderboard-tabs">
+  <button onclick="showLeaderboard('month')">🌴 Month</button>
+  <button onclick="showLeaderboard('year')">🏆 Year</button>
+  <button onclick="showLeaderboard('hall')">👑 Hall of Fame</button>
+</div>
+
+<div id="monthlyLeaderboard"></div>
+<div id="yearlyLeaderboard" style="display:none;"></div>
+<div id="hallOfFame" style="display:none;"></div>
 
 <div id="memoriesPanel" class="memories-panel" style="display:none;">
   <div class="memories-content">
@@ -529,6 +540,12 @@ button{
   <button onclick="adminReset()">
     🧹 Reset Leaderboard
   </button>
+ 
+  <button onclick="finalizeMonth()">
+  🏁 Finalize Month
+</button>
+
+  <button onclick="openBadgeManager()">🎖 Manage Badges</button>
 
   <button onclick="generateBoard()">
     🎲 Generate New Board
